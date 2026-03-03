@@ -56,7 +56,7 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange }: LeadCardProp
             ) : (
               <button 
                 onClick={() => onSave?.(lead)}
-                className="flex items-center gap-1 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-md px-3 py-1.5 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 rounded-md px-3 py-1.5 transition-colors shadow-sm"
               >
                 <Save className="w-3.5 h-3.5" />
                 Save to Database

@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { EmailDraft } from '../types';
-import { Copy, Check, Mail, RefreshCw, Loader2 } from 'lucide-react';
+import { Copy, Check, Mail, RefreshCw, Loader2, Send } from 'lucide-react';
 
 interface EmailDraftCardProps {
   draft: EmailDraft;
+  leadEmail?: string;
   onRegenerate?: () => void;
   isGenerating?: boolean;
 }
 
-export function EmailDraftCard({ draft, onRegenerate, isGenerating }: EmailDraftCardProps) {
+export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }: EmailDraftCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   const handleCopy = (text: string, section: string) => {
     navigator.clipboard.writeText(text);
     setCopiedSection(section);
     setTimeout(() => setCopiedSection(null), 2000);
+  };
+
+  const handleOpenGmail = () => {
+    const subject = encodeURIComponent(draft.subject_combined);
+    const body = encodeURIComponent(`${draft.body_korean}\n\n${draft.body_english}`);
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${leadEmail || ''}&su=${subject}&body=${body}`, '_blank');
   };
 
   return (
@@ -29,16 +36,25 @@ export function EmailDraftCard({ draft, onRegenerate, isGenerating }: EmailDraft
             <p className="text-sm text-slate-500">Personalised bilingual draft ready to send.</p>
           </div>
         </div>
-        {onRegenerate && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={onRegenerate}
-            disabled={isGenerating}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-colors disabled:opacity-50"
+            onClick={handleOpenGmail}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm"
           >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Regenerate
+            <Send className="w-4 h-4" />
+            Open in Gmail
           </button>
-        )}
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              disabled={isGenerating}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Regenerate
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-6 space-y-6">

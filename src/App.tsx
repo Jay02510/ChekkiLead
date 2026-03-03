@@ -3,7 +3,7 @@ import { enrichLead, generateEmailDraft } from './services/geminiService';
 import { EnrichedLead, EmailDraft, NaverSearchResult, FirebaseStatus } from './types';
 import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
-import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from './lib/firebase';
@@ -30,6 +30,7 @@ export default function App() {
   // Database State
   const [savedLeads, setSavedLeads] = useState<EnrichedLead[]>([]);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [dbFilter, setDbFilter] = useState<string>('all');
 
   useEffect(() => {
     // Always fetch saved leads on mount so we can cross-reference in search
@@ -160,6 +161,30 @@ export default function App() {
       toast.error('Failed to update status');
     }
   };
+
+  const handleExportCSV = () => {
+    if (savedLeads.length === 0) return;
+    
+    const headers = ['Name (EN)', 'Name (KR)', 'Type', 'City', 'District', 'Email', 'Phone', 'Priority', 'Status', 'Naver ID'];
+    const csvContent = [
+      headers.join(','),
+      ...savedLeads.map(l => 
+        `"${l.institution_name_en || ''}","${l.institution_name_kr || ''}","${l.institution_type || ''}","${l.city || ''}","${l.district || ''}","${l.email || ''}","${l.phone || ''}",${l.outreach_priority},"${l.firebase_status}","${l.naver_id}"`
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'chekkiai_leads.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Database exported to CSV');
+  };
+
+  const filteredLeads = dbFilter === 'all' ? savedLeads : savedLeads.filter(l => l.firebase_status === dbFilter);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -331,6 +356,7 @@ export default function App() {
                     ) : (
                       <EmailDraftCard 
                         draft={emailDrafts[lead.naver_id]} 
+                        leadEmail={lead.email}
                         onRegenerate={() => handleGenerateEmail(lead)}
                         isGenerating={generatingEmails[lead.naver_id]}
                       />
@@ -359,16 +385,45 @@ export default function App() {
         ) : (
           /* Database Tab */
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-900">Saved Leads Database</h2>
-              <span className="text-sm font-medium text-slate-500">{savedLeads.length} leads total</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">Saved Leads Database</h2>
+                <span className="text-sm font-medium text-slate-500">{filteredLeads.length} leads found</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Filter className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <select
+                    value={dbFilter}
+                    onChange={(e) => setDbFilter(e.target.value)}
+                    className="pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="not_contacted">Not Contacted</option>
+                    <option value="pending">Pending</option>
+                    <option value="sent">Sent</option>
+                    <option value="replied">Replied</option>
+                    <option value="bounced">Bounced</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleExportCSV}
+                  disabled={savedLeads.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </button>
+              </div>
             </div>
             
             {isLoadingDb ? (
               <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
-            ) : savedLeads.length > 0 ? (
+            ) : filteredLeads.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
-                {savedLeads.map(lead => (
+                {filteredLeads.map(lead => (
                   <LeadCard 
                     key={lead.naver_id} 
                     lead={lead} 
@@ -380,8 +435,10 @@ export default function App() {
             ) : (
               <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
                 <Database className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900">No saved leads</h3>
-                <p className="text-sm text-slate-500">Enrich some leads and click "Save to Database" to see them here.</p>
+                <h3 className="text-lg font-medium text-slate-900">No leads found</h3>
+                <p className="text-sm text-slate-500">
+                  {dbFilter === 'all' ? 'Enrich some leads and click "Save to Database" to see them here.' : `No leads match the "${dbFilter}" status.`}
+                </p>
               </div>
             )}
           </div>
