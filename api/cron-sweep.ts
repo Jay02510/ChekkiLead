@@ -11,13 +11,15 @@ import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 // Hobby, this project's plan — see maxDuration in vercel.json). The UI's
 // Bulk Sweep button doesn't hit this because its loop runs in the
 // browser tab, issuing many short-lived API calls; here the whole loop
-// is one invocation, so scope has to fit in 60s. QUERIES_PER_RUN=2 at
-// 1 page (5 results) each was sized against real Gemini enrich latency
-// (~1-4s/item) to comfortably clear that ceiling with margin, not
-// against the full 10-query x 3-page scope the UI button covers in one
-// click — this rotates through the list a couple of queries at a time
-// instead, via a cursor stored in Firestore, covering the full matrix
-// over about 5 days rather than attempting a bigger scope per run.
+// is one invocation, so scope has to fit in 60s. QUERIES_PER_RUN=2 was
+// the first attempt, sized against *failed* enrich calls (fast
+// RESOURCE_EXHAUSTED responses) during testing — timed out at exactly
+// 60s once real enrichment succeeded, since a real Gemini call runs
+// several seconds, not milliseconds. QUERIES_PER_RUN=1 (up to 5 results)
+// is sized against real per-item latency instead, rotating through the
+// list one query at a time via a cursor stored in Firestore — covering
+// the full matrix over ~10 days rather than attempting a bigger scope
+// per run.
 //
 // ponytail: query list is a fixed constant, not a Firestore-backed
 // settings UI — edit this array and redeploy to change targets. Add a
@@ -25,7 +27,7 @@ import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 const DISTRICTS = ["강남구", "서초구", "송파구", "마포구", "분당구"];
 const KEYWORDS = ["영어학원", "유치원"];
 const QUERIES = DISTRICTS.flatMap(d => KEYWORDS.map(k => `${d} ${k}`));
-const QUERIES_PER_RUN = 2;
+const QUERIES_PER_RUN = 1;
 const MAX_PAGES_PER_QUERY = 1;
 const LEADS_COLLECTION = "leads";
 const CURSOR_DOC = "config/cron_sweep";
