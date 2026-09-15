@@ -324,6 +324,30 @@ export default function App() {
 
   const filteredLeads = dbFilter === 'all' ? savedLeads : savedLeads.filter(l => l.firebase_status === dbFilter);
 
+  // Shared between the Search tab's temporary results and the Database
+  // tab's saved leads — drafting an email shouldn't require re-searching.
+  const renderEmailDraftSection = (lead: EnrichedLead) =>
+    !emailDrafts[lead.naver_id] ? (
+      <button
+        onClick={() => handleGenerateEmail(lead)}
+        disabled={generatingEmails[lead.naver_id]}
+        className="w-full py-3 px-4 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-200 font-semibold rounded-xl transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
+      >
+        {generatingEmails[lead.naver_id] ? (
+          <><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /> Generating Email Draft...</>
+        ) : (
+          <><Mail className="w-5 h-5 text-zinc-400" /> Generate Cold Email Draft</>
+        )}
+      </button>
+    ) : (
+      <EmailDraftCard
+        draft={emailDrafts[lead.naver_id]}
+        leadEmail={lead.email}
+        onRegenerate={() => handleGenerateEmail(lead)}
+        isGenerating={generatingEmails[lead.naver_id]}
+      />
+    );
+
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-zinc-100">
       <Toaster position="top-right" richColors theme="dark" />
@@ -449,27 +473,29 @@ export default function App() {
                   One query per line (e.g. district + institution type). Runs search → enrich → save unattended, skipping anything already in your database.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                <div className="space-y-2 mb-3">
+                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Districts</label>
                   <input
                     type="text"
                     value={matrixDistricts}
                     onChange={(e) => setMatrixDistricts(e.target.value)}
                     disabled={isBulkRunning}
                     placeholder="Districts, comma separated"
-                    className="flex-1 px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
                   />
+                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Keywords</label>
                   <input
                     type="text"
                     value={matrixKeywords}
                     onChange={(e) => setMatrixKeywords(e.target.value)}
                     disabled={isBulkRunning}
                     placeholder="Keywords, comma separated"
-                    className="flex-1 px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
                   />
                   <button
                     onClick={handleGenerateMatrix}
                     disabled={isBulkRunning}
-                    className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-xs font-semibold rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50 whitespace-nowrap"
+                    className="w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-xs font-semibold rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
                   >
                     Generate combos
                   </button>
@@ -545,34 +571,14 @@ export default function App() {
                     transition={motionTransition}
                     className="space-y-4 pb-8 border-b border-white/10 last:border-0"
                   >
-                    <LeadCard 
-                      lead={lead} 
-                      onSave={handleSaveLead} 
+                    <LeadCard
+                      lead={lead}
+                      onSave={handleSaveLead}
                       isSaved={savedLeads.some(l => l.naver_id === lead.naver_id)}
                       onStatusChange={handleStatusChange}
                       onVerifyEmail={handleVerifyEmail}
                     />
-                    
-                    {!emailDrafts[lead.naver_id] ? (
-                      <button
-                        onClick={() => handleGenerateEmail(lead)}
-                        disabled={generatingEmails[lead.naver_id]}
-                        className="w-full py-3 px-4 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-200 font-semibold rounded-xl transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
-                      >
-                        {generatingEmails[lead.naver_id] ? (
-                          <><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /> Generating Email Draft...</>
-                        ) : (
-                          <><Mail className="w-5 h-5 text-zinc-400" /> Generate Cold Email Draft</>
-                        )}
-                      </button>
-                    ) : (
-                      <EmailDraftCard
-                        draft={emailDrafts[lead.naver_id]}
-                        leadEmail={lead.email}
-                        onRegenerate={() => handleGenerateEmail(lead)}
-                        isGenerating={generatingEmails[lead.naver_id]}
-                      />
-                    )}
+                    {renderEmailDraftSection(lead)}
                   </motion.div>
                 ))}
 
@@ -641,13 +647,15 @@ export default function App() {
             ) : filteredLeads.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
                 {filteredLeads.map(lead => (
-                  <LeadCard
-                    key={lead.naver_id}
-                    lead={lead}
-                    isSaved={true}
-                    onStatusChange={handleStatusChange}
-                    onVerifyEmail={handleVerifyEmail}
-                  />
+                  <div key={lead.naver_id} className="space-y-4">
+                    <LeadCard
+                      lead={lead}
+                      isSaved={true}
+                      onStatusChange={handleStatusChange}
+                      onVerifyEmail={handleVerifyEmail}
+                    />
+                    {renderEmailDraftSection(lead)}
+                  </div>
                 ))}
               </div>
             ) : (
