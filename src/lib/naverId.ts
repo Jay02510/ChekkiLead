@@ -35,6 +35,18 @@ function extractNaverPlaceId(link: string | undefined | null): string | null {
   return match ? `place_${match[1]}` : null;
 }
 
+// Naver returns address/roadAddress inconsistently across queries for the
+// same place (floor/suite suffix present in one search, absent in another),
+// which used to fork the hash-fallback dedupe key. Stripping floor/unit
+// suffixes and collapsing whitespace makes the hash stable across queries.
+function normalizeAddress(addr: string): string {
+  return addr
+    .replace(/지하\s*\d+\s*층/g, '')
+    .replace(/\d+\s*층/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function getNaverId(result: NaverSearchResult): string {
   const fromLink = extractNaverPlaceId(result.link);
   if (fromLink) return fromLink;
@@ -43,6 +55,6 @@ export function getNaverId(result: NaverSearchResult): string {
   if (phone.length >= 8) return `phone_${phone}`;
 
   const name = stripHtml(result.title).trim();
-  const addr = (result.roadAddress || result.address || '').trim();
+  const addr = normalizeAddress(result.roadAddress || result.address || '');
   return `hash_${hashString(`${name}|${addr}`)}`;
 }

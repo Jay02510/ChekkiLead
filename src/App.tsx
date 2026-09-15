@@ -10,6 +10,10 @@ import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'fir
 import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
+// Keeps local dev writes out of the real outreach data — `npm run dev`
+// (import.meta.env.DEV) writes to a separate collection than production.
+const LEADS_COLLECTION = import.meta.env.DEV ? 'leads_dev' : 'leads';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'search' | 'database'>('search');
   
@@ -56,7 +60,7 @@ export default function App() {
     setIsLoadingDb(true);
     try {
       await authReady;
-      const q = query(collection(db, 'leads'), orderBy('outreach_priority', 'desc'));
+      const q = query(collection(db, LEADS_COLLECTION), orderBy('outreach_priority', 'desc'));
       const querySnapshot = await getDocs(q);
       const leadsData: EnrichedLead[] = [];
       querySnapshot.forEach((doc) => {
@@ -204,7 +208,7 @@ export default function App() {
           try {
             const withId = { ...item, naver_id: naverId };
             const enriched = await enrichLead(JSON.stringify(withId));
-            await setDoc(doc(db, 'leads', enriched.naver_id), enriched);
+            await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), enriched);
             setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
             setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
           } catch (err: any) {
@@ -240,7 +244,7 @@ export default function App() {
   const handleSaveLead = async (lead: EnrichedLead) => {
     try {
       await authReady;
-      await setDoc(doc(db, 'leads', lead.naver_id), lead);
+      await setDoc(doc(db, LEADS_COLLECTION, lead.naver_id), lead);
       toast.success('Lead saved to Firebase!');
       fetchSavedLeads(); // Refresh to update "Saved" badges
     } catch (err) {
@@ -260,7 +264,7 @@ export default function App() {
         updates.last_contacted_at = new Date().toISOString();
       }
       await authReady;
-      await updateDoc(doc(db, 'leads', naver_id), updates);
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), updates);
       toast.success('Status updated successfully');
       fetchSavedLeads(); // Refresh
     } catch (err) {
@@ -272,7 +276,7 @@ export default function App() {
   const handleVerifyEmail = async (naver_id: string) => {
     try {
       await authReady;
-      await updateDoc(doc(db, 'leads', naver_id), { email_verification: 'verified' });
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), { email_verification: 'verified' });
       toast.success('Email marked as verified');
       fetchSavedLeads();
     } catch (err) {
@@ -289,15 +293,20 @@ export default function App() {
   }).length;
   const DAILY_SEND_CAP = 8;
 
+  const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
   const handleExportCSV = () => {
     if (savedLeads.length === 0) return;
-    
-    const headers = ['Name (EN)', 'Name (KR)', 'Type', 'City', 'District', 'Email', 'Phone', 'Priority', 'Status', 'Naver ID'];
+
+    const headers = ['Name (EN)', 'Name (KR)', 'Type', 'City', 'District', 'Email', 'Phone', 'Website', 'Instagram', 'Priority', 'Status', 'Agent Notes', 'Naver ID'];
     const csvContent = [
       headers.join(','),
-      ...savedLeads.map(l => 
-        `"${l.institution_name_en || ''}","${l.institution_name_kr || ''}","${l.institution_type || ''}","${l.city || ''}","${l.district || ''}","${l.email || ''}","${l.phone || ''}",${l.outreach_priority},"${l.firebase_status}","${l.naver_id}"`
-      )
+      ...savedLeads.map(l => [
+        csvCell(l.institution_name_en), csvCell(l.institution_name_kr), csvCell(l.institution_type),
+        csvCell(l.city), csvCell(l.district), csvCell(l.email), csvCell(l.phone),
+        csvCell(l.website), csvCell(l.instagram), l.outreach_priority, csvCell(l.firebase_status),
+        csvCell(l.agent_notes), csvCell(l.naver_id),
+      ].join(','))
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -400,7 +409,7 @@ export default function App() {
                             className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group relative"
                           >
                             <div className="flex justify-between items-start">
-                              <h4 className="font-medium text-slate-900 group-hover:text-indigo-700 pr-16" dangerouslySetInnerHTML={{ __html: result.title }} />
+                              <h4 className="font-medium text-slate-900 group-hover:text-indigo-700 pr-16">{stripHtml(result.title)}</h4>
                               {isAlreadySaved && (
                                 <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
                                   <CheckCircle2 className="w-3 h-3" />
