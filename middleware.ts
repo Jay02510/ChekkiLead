@@ -5,7 +5,12 @@
 // directly, burning the Naver/Gemini quota on our account for free.
 // Only enforced when both env vars are set, so local dev (Express, no
 // middleware support) stays open on localhost.
-export const config = { matcher: '/((?!favicon.ico).*)' };
+//
+// /api/cron-sweep is excluded — Vercel's cron invoker sends
+// `Authorization: Bearer $CRON_SECRET`, not Basic Auth credentials, so it
+// would otherwise get locked out of its own scheduled run. That endpoint
+// checks CRON_SECRET itself instead (see api/cron-sweep.ts).
+export const config = { matcher: '/((?!favicon.ico|api/cron-sweep).*)' };
 
 export default function middleware(req: Request) {
   const user = process.env.APP_USER;
