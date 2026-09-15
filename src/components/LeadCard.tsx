@@ -1,16 +1,18 @@
 import React from 'react';
 import { EnrichedLead, FirebaseStatus } from '../types';
-import { Building2, MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Info, Save } from 'lucide-react';
+import { Building2, MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Info, Save, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 interface LeadCardProps {
   lead: EnrichedLead;
   isSaved?: boolean;
   onSave?: (lead: EnrichedLead) => void;
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
+  onVerifyEmail?: (naver_id: string) => void;
   key?: string | number;
 }
 
-export function LeadCard({ lead, isSaved, onSave, onStatusChange }: LeadCardProps) {
+export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail }: LeadCardProps) {
+  const needsVerification = lead.email_confidence === 'estimated' && lead.email_verification !== 'verified';
   const getPriorityColor = (priority: number) => {
     if (priority >= 4) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (priority === 3) return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -42,17 +44,25 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange }: LeadCardProp
               Priority {lead.outreach_priority}
             </div>
             {isSaved ? (
-              <select 
-                value={lead.firebase_status}
-                onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
-                className="text-xs font-medium bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="not_contacted">Not Contacted</option>
-                <option value="pending">Pending</option>
-                <option value="sent">Sent</option>
-                <option value="replied">Replied</option>
-                <option value="bounced">Bounced</option>
-              </select>
+              <div className="flex flex-col items-end gap-1">
+                <select 
+                  value={lead.firebase_status}
+                  onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
+                  disabled={needsVerification && lead.firebase_status === 'not_contacted'}
+                  title={needsVerification ? 'Verify the email address before marking this lead as contacted.' : undefined}
+                  className="text-xs font-medium bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="not_contacted">Not Contacted</option>
+                  <option value="pending">Pending</option>
+                  <option value="sent">Sent</option>
+                  <option value="replied">Replied</option>
+                  <option value="bounced">Bounced</option>
+                  <option value="opted_out">Opted Out</option>
+                </select>
+                {lead.last_contacted_at && (
+                  <span className="text-[10px] text-slate-400">Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}</span>
+                )}
+              </div>
             ) : (
               <button 
                 onClick={() => onSave?.(lead)}
@@ -101,9 +111,25 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange }: LeadCardProp
           
           <div className="flex items-center gap-3 text-slate-600">
             <Mail className="w-5 h-5 text-slate-400 shrink-0" />
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1">
               <span className="text-sm">{lead.email}</span>
-              <span className="text-xs text-slate-400">({lead.email_confidence})</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${needsVerification ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                  ({lead.email_confidence}{lead.email_verification === 'verified' ? ', verified' : ''})
+                </span>
+                {needsVerification ? (
+                  <button
+                    onClick={() => onVerifyEmail?.(lead.naver_id)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 hover:text-amber-900"
+                    title="Confirm you checked this address (e.g. on the academy's site) before sending"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    Mark as manually verified
+                  </button>
+                ) : lead.email_confidence !== 'unknown' && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                )}
+              </div>
             </div>
           </div>
           

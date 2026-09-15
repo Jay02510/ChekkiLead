@@ -1,11 +1,78 @@
+import dotenv from "dotenv";
+// Match Vite's env-file convention (.env then .env.local, latter wins) so
+// the same .env.local you set up for the client also feeds the server.
+dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.local", override: true });
 import express from "express";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI, Type } from "@google/genai";
+import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA } from "./src/lib/geminiPrompts";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  const genaiClient = () => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY not configured on the server.");
+    }
+    return new GoogleGenAI({ apiKey });
+  };
+
+  // Lead enrichment — runs server-side only, so the Gemini key never ships
+  // to the browser bundle (it previously did, via vite.config.ts `define`).
+  app.post("/api/enrich-lead", async (req, res) => {
+    try {
+      const { rawData } = req.body;
+      if (!rawData) return res.status(400).json({ error: "rawData is required." });
+
+      const ai = genaiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: rawData,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: ENRICH_SCHEMA,
+        },
+      });
+
+      const text = response.text;
+      if (!text) return res.status(502).json({ error: "No response from Gemini." });
+      res.json(JSON.parse(text));
+    } catch (error: any) {
+      console.error("Enrich lead error:", error);
+      res.status(500).json({ error: error.message || "Failed to enrich lead." });
+    }
+  });
+
+  app.post("/api/generate-email", async (req, res) => {
+    try {
+      const { lead } = req.body;
+      if (!lead) return res.status(400).json({ error: "lead is required." });
+
+      const ai = genaiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: JSON.stringify(lead),
+        config: {
+          systemInstruction: EMAIL_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: EMAIL_SCHEMA,
+        },
+      });
+
+      const text = response.text;
+      if (!text) return res.status(502).json({ error: "No response from Gemini." });
+      res.json(JSON.parse(text));
+    } catch (error: any) {
+      console.error("Generate email error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate email." });
+    }
+  });
 
   // API Route for Naver Local Search with Pagination
   app.get("/api/naver-search", async (req, res) => {
@@ -29,6 +96,9 @@ async function startServer() {
         },
       });
 
+      if (response.status === 429) {
+        return res.status(429).json({ error: "Naver API rate limit hit — wait a moment before searching again." });
+      }
       if (!response.ok) {
         throw new Error(`Naver API responded with ${response.status}`);
       }

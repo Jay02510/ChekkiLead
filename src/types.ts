@@ -1,7 +1,8 @@
 export type InstitutionType = 'hagwon' | 'elementary_school' | 'kindergarten' | 'international_school' | 'tutoring_centre';
 export type EmailConfidence = 'scraped' | 'estimated' | 'unknown';
 export type CEFRLevel = 'Pre-A1' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
-export type FirebaseStatus = 'pending' | 'sent' | 'replied' | 'bounced' | 'not_contacted';
+export type FirebaseStatus = 'pending' | 'sent' | 'replied' | 'bounced' | 'not_contacted' | 'opted_out';
+export type VerificationStatus = 'unverified' | 'verified';
 
 export interface NaverSearchResult {
   title: string;
@@ -36,6 +37,8 @@ export interface EnrichedLead {
   fit_reason: string;
   agent_notes?: string;
   firebase_status: FirebaseStatus;
+  email_verification?: VerificationStatus;
+  last_contacted_at?: string | null;
 }
 
 export interface EmailDraft {

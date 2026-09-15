@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { enrichLead, generateEmailDraft } from './services/geminiService';
 import { EnrichedLead, EmailDraft, NaverSearchResult, FirebaseStatus } from './types';
+import { getNaverId, stripHtml } from './lib/naverId';
 import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
-import { db } from './lib/firebase';
+import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
 export default function App() {
@@ -32,6 +33,14 @@ export default function App() {
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [dbFilter, setDbFilter] = useState<string>('all');
 
+  // Bulk Sweep State — runs a list of queries unattended: search -> dedupe -> enrich -> save
+  const [bulkQueries, setBulkQueries] = useState('');
+  const [isBulkRunning, setIsBulkRunning] = useState(false);
+  const [bulkLog, setBulkLog] = useState<string[]>([]);
+  const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, failed: 0 });
+  const [matrixDistricts, setMatrixDistricts] = useState('강남구, 서초구, 송파구, 마포구, 분당구');
+  const [matrixKeywords, setMatrixKeywords] = useState('영어학원, 유치원');
+
   useEffect(() => {
     // Always fetch saved leads on mount so we can cross-reference in search
     fetchSavedLeads();
@@ -46,6 +55,7 @@ export default function App() {
   const fetchSavedLeads = async () => {
     setIsLoadingDb(true);
     try {
+      await authReady;
       const q = query(collection(db, 'leads'), orderBy('outreach_priority', 'desc'));
       const querySnapshot = await getDocs(q);
       const leadsData: EnrichedLead[] = [];
@@ -87,8 +97,12 @@ export default function App() {
   const handleNextPage = () => handleSearch(undefined, searchStart + 5);
   const handlePrevPage = () => handleSearch(undefined, Math.max(1, searchStart - 5));
 
+  // O(1) "already in database" lookups, recomputed only when savedLeads changes.
+  const savedIds = useMemo(() => new Set(savedLeads.map(l => l.naver_id)), [savedLeads]);
+
   const handleSelectResult = (result: NaverSearchResult) => {
-    handleEnrichWithData(JSON.stringify(result, null, 2));
+    const withId = { ...result, naver_id: getNaverId(result) };
+    handleEnrichWithData(JSON.stringify(withId, null, 2));
   };
 
   const handleEnrichWithData = async (dataToEnrich: string) => {
@@ -107,23 +121,108 @@ export default function App() {
 
   const handleBatchEnrich = async () => {
     if (searchResults.length === 0) return;
+
+    const toProcess = searchResults.filter(r => !savedIds.has(getNaverId(r)));
+    const skipped = searchResults.length - toProcess.length;
+    if (skipped > 0) {
+      toast.info(`Skipping ${skipped} result${skipped > 1 ? 's' : ''} already in your database`);
+    }
+    if (toProcess.length === 0) {
+      toast.info('Nothing new to enrich — every result here is already saved.');
+      return;
+    }
+
     setIsBatchEnriching(true);
     setError(null);
     setEnrichedLeads([]);
-    
+
     const results: EnrichedLead[] = [];
-    try {
-      // Process sequentially to avoid rate limits
-      for (const item of searchResults) {
-        const result = await enrichLead(JSON.stringify(item));
+    for (const item of toProcess) {
+      try {
+        const withId = { ...item, naver_id: getNaverId(item) };
+        const result = await enrichLead(JSON.stringify(withId));
         results.push(result);
         setEnrichedLeads([...results]); // Update UI progressively
+      } catch (err: any) {
+        // One bad item shouldn't kill the rest of the batch.
+        console.error(`Failed to enrich "${stripHtml(item.title)}":`, err);
+        toast.error(`Skipped "${stripHtml(item.title)}" — enrichment failed`);
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during batch enrichment.');
-    } finally {
-      setIsBatchEnriching(false);
+      // Small gap between calls to stay clear of Gemini rate limits.
+      await new Promise(res => setTimeout(res, 400));
     }
+    setIsBatchEnriching(false);
+  };
+
+  const handleGenerateMatrix = () => {
+    const districts = matrixDistricts.split(',').map(d => d.trim()).filter(Boolean);
+    const keywords = matrixKeywords.split(',').map(k => k.trim()).filter(Boolean);
+    if (districts.length === 0 || keywords.length === 0) return;
+
+    const combos = districts.flatMap(d => keywords.map(k => `${d} ${k}`));
+    setBulkQueries(combos.join('\n'));
+    toast.success(`Generated ${combos.length} queries`);
+  };
+
+  // ponytail: 3 pages (15 results) per query cap — raise if a district search needs deeper paging
+  const BULK_MAX_PAGES = 3;
+
+  const handleBulkSweep = async () => {
+    const queries = bulkQueries.split('\n').map(q => q.trim()).filter(Boolean);
+    if (queries.length === 0 || isBulkRunning) return;
+
+    setIsBulkRunning(true);
+    setBulkLog([]);
+    setBulkStats({ queriesDone: 0, queriesTotal: queries.length, saved: 0, skipped: 0, failed: 0 });
+
+    await authReady;
+    const seen = new Set(savedIds);
+
+    for (const q of queries) {
+      for (let page = 0; page < BULK_MAX_PAGES; page++) {
+        const start = page * 5 + 1;
+        let data: any;
+        try {
+          const res = await fetch(`/api/naver-search?query=${encodeURIComponent(q)}&start=${start}`);
+          data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Naver search failed');
+        } catch (err: any) {
+          setBulkLog(l => [`Search failed for "${q}": ${err.message}`, ...l]);
+          break;
+        }
+
+        const items: NaverSearchResult[] = data.items || [];
+        if (items.length === 0) break;
+
+        for (const item of items) {
+          const naverId = getNaverId(item);
+          if (seen.has(naverId)) {
+            setBulkStats(s => ({ ...s, skipped: s.skipped + 1 }));
+            continue;
+          }
+          seen.add(naverId);
+          try {
+            const withId = { ...item, naver_id: naverId };
+            const enriched = await enrichLead(JSON.stringify(withId));
+            await setDoc(doc(db, 'leads', enriched.naver_id), enriched);
+            setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
+            setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
+          } catch (err: any) {
+            setBulkStats(s => ({ ...s, failed: s.failed + 1 }));
+            setBulkLog(l => [`Failed: ${stripHtml(item.title)} — ${err.message}`, ...l]);
+          }
+          await new Promise(res => setTimeout(res, 400)); // stay clear of Gemini rate limits
+        }
+
+        if (start + 5 > (data.total || 0)) break;
+        await new Promise(res => setTimeout(res, 300)); // stay clear of Naver rate limits
+      }
+      setBulkStats(s => ({ ...s, queriesDone: s.queriesDone + 1 }));
+    }
+
+    setIsBulkRunning(false);
+    fetchSavedLeads();
+    toast.success(`Bulk sweep done — ${queries.length} quer${queries.length > 1 ? 'ies' : 'y'} processed`);
   };
 
   const handleGenerateEmail = async (lead: EnrichedLead) => {
@@ -140,6 +239,7 @@ export default function App() {
 
   const handleSaveLead = async (lead: EnrichedLead) => {
     try {
+      await authReady;
       await setDoc(doc(db, 'leads', lead.naver_id), lead);
       toast.success('Lead saved to Firebase!');
       fetchSavedLeads(); // Refresh to update "Saved" badges
@@ -151,9 +251,16 @@ export default function App() {
 
   const handleStatusChange = async (naver_id: string, status: FirebaseStatus) => {
     try {
-      await updateDoc(doc(db, 'leads', naver_id), {
-        firebase_status: status
-      });
+      const updates: Record<string, any> = { firebase_status: status };
+      if (status === 'sent') {
+        if (sentToday >= DAILY_SEND_CAP) {
+          toast.error(`Daily send cap reached (${DAILY_SEND_CAP}/day) — try again tomorrow.`);
+          return;
+        }
+        updates.last_contacted_at = new Date().toISOString();
+      }
+      await authReady;
+      await updateDoc(doc(db, 'leads', naver_id), updates);
       toast.success('Status updated successfully');
       fetchSavedLeads(); // Refresh
     } catch (err) {
@@ -161,6 +268,26 @@ export default function App() {
       toast.error('Failed to update status');
     }
   };
+
+  const handleVerifyEmail = async (naver_id: string) => {
+    try {
+      await authReady;
+      await updateDoc(doc(db, 'leads', naver_id), { email_verification: 'verified' });
+      toast.success('Email marked as verified');
+      fetchSavedLeads();
+    } catch (err) {
+      console.error("Failed to update verification in Firebase", err);
+      toast.error('Failed to update verification');
+    }
+  };
+
+  const sentToday = savedLeads.filter(l => {
+    if (!l.last_contacted_at) return false;
+    const d = new Date(l.last_contacted_at);
+    const now = new Date();
+    return d.toDateString() === now.toDateString();
+  }).length;
+  const DAILY_SEND_CAP = 8;
 
   const handleExportCSV = () => {
     if (savedLeads.length === 0) return;
@@ -265,7 +392,7 @@ export default function App() {
                     </div>
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                       {searchResults.map((result, idx) => {
-                        const isAlreadySaved = savedLeads.some(l => l.naver_id === result.id);
+                        const isAlreadySaved = savedIds.has(getNaverId(result));
                         return (
                           <button
                             key={idx}
@@ -297,6 +424,72 @@ export default function App() {
                       {isBatchEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
                       Batch Enrich All {searchResults.length} Results
                     </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Bulk Sweep Section */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 className="text-lg font-semibold text-slate-900 mb-2">Bulk Sweep</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  One query per line (e.g. district + institution type). Runs search → enrich → save unattended, skipping anything already in your database.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={matrixDistricts}
+                    onChange={(e) => setMatrixDistricts(e.target.value)}
+                    disabled={isBulkRunning}
+                    placeholder="Districts, comma separated"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  />
+                  <input
+                    type="text"
+                    value={matrixKeywords}
+                    onChange={(e) => setMatrixKeywords(e.target.value)}
+                    disabled={isBulkRunning}
+                    placeholder="Keywords, comma separated"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  />
+                  <button
+                    onClick={handleGenerateMatrix}
+                    disabled={isBulkRunning}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    Generate combos
+                  </button>
+                </div>
+
+                <textarea
+                  value={bulkQueries}
+                  onChange={(e) => setBulkQueries(e.target.value)}
+                  disabled={isBulkRunning}
+                  rows={5}
+                  placeholder={'강남구 영어학원\n서초구 영어학원\n분당구 유치원'}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono transition-colors disabled:bg-slate-50"
+                />
+                <button
+                  onClick={handleBulkSweep}
+                  disabled={isBulkRunning || !bulkQueries.trim()}
+                  className="w-full mt-3 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  {isBulkRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+                  {isBulkRunning ? `Sweeping (${bulkStats.queriesDone}/${bulkStats.queriesTotal})...` : 'Run Bulk Sweep'}
+                </button>
+
+                {(isBulkRunning || bulkLog.length > 0) && (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      <span className="text-emerald-600">Saved {bulkStats.saved}</span>
+                      <span className="text-slate-400">Skipped {bulkStats.skipped}</span>
+                      {bulkStats.failed > 0 && <span className="text-red-600">Failed {bulkStats.failed}</span>}
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1 bg-slate-50 rounded-lg border border-slate-200 p-3">
+                      {bulkLog.map((line, i) => (
+                        <p key={i} className="text-xs text-slate-600 font-mono">{line}</p>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -339,6 +532,8 @@ export default function App() {
                       lead={lead} 
                       onSave={handleSaveLead} 
                       isSaved={savedLeads.some(l => l.naver_id === lead.naver_id)}
+                      onStatusChange={handleStatusChange}
+                      onVerifyEmail={handleVerifyEmail}
                     />
                     
                     {!emailDrafts[lead.naver_id] ? (
@@ -406,8 +601,12 @@ export default function App() {
                     <option value="sent">Sent</option>
                     <option value="replied">Replied</option>
                     <option value="bounced">Bounced</option>
+                    <option value="opted_out">Opted Out</option>
                   </select>
                 </div>
+                <span className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${sentToday >= DAILY_SEND_CAP ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                  Sent today: {sentToday}/{DAILY_SEND_CAP}
+                </span>
                 <button
                   onClick={handleExportCSV}
                   disabled={savedLeads.length === 0}
@@ -428,7 +627,8 @@ export default function App() {
                     key={lead.naver_id} 
                     lead={lead} 
                     isSaved={true} 
-                    onStatusChange={handleStatusChange} 
+                    onStatusChange={handleStatusChange}
+                    onVerifyEmail={handleVerifyEmail}
                   />
                 ))}
               </div>
