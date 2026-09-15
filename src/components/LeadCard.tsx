@@ -16,7 +16,7 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
   const getPriorityColor = (priority: number) => {
     if (priority >= 4) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (priority === 3) return 'bg-amber-100 text-amber-800 border-amber-200';
-    return 'bg-slate-100 text-slate-800 border-slate-200';
+    return 'bg-zinc-100 text-zinc-800 border-zinc-200';
   };
 
   const getInstitutionTypeLabel = (type: string) => {
@@ -31,12 +31,12 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-6 border-b border-slate-100">
+    <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+      <div className="p-6 border-b border-zinc-100">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 font-sans tracking-tight">{lead.institution_name_en}</h2>
-            <h3 className="text-lg text-slate-500 font-medium mt-1">{lead.institution_name_kr}</h3>
+            <h2 className="text-2xl font-bold text-zinc-900 font-display tracking-tight">{lead.institution_name_en}</h2>
+            <h3 className="text-lg text-zinc-500 font-medium mt-1">{lead.institution_name_kr}</h3>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className={`px-3 py-1 rounded-full text-sm font-semibold border flex items-center gap-1 ${getPriorityColor(lead.outreach_priority)}`}>
@@ -50,7 +50,7 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
                   onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
                   disabled={needsVerification && lead.firebase_status === 'not_contacted'}
                   title={needsVerification ? 'Verify the email address before marking this lead as contacted.' : undefined}
-                  className="text-xs font-medium bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-xs font-medium bg-white border border-zinc-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="not_contacted">Not Contacted</option>
                   <option value="pending">Pending</option>
@@ -60,13 +60,13 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
                   <option value="opted_out">Opted Out</option>
                 </select>
                 {lead.last_contacted_at && (
-                  <span className="text-[10px] text-slate-400">Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}</span>
+                  <span className="text-[10px] text-zinc-400">Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}</span>
                 )}
               </div>
             ) : (
               <button 
                 onClick={() => onSave?.(lead)}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 rounded-md px-3 py-1.5 transition-colors shadow-sm"
+                className="flex items-center gap-1.5 text-xs font-semibold bg-orange-700 text-white hover:bg-orange-800 rounded-md px-3 py-1.5 transition-colors shadow-sm"
               >
                 <Save className="w-3.5 h-3.5" />
                 Save to Database
@@ -76,7 +76,7 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
         </div>
         
         <div className="flex flex-wrap gap-2 mt-4">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 text-sm font-medium">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-50 text-orange-800 text-sm font-medium">
             <Building2 className="w-4 h-4" />
             {getInstitutionTypeLabel(lead.institution_type)}
           </span>
@@ -95,26 +95,26 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
 
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Contact Info</h4>
+          <h4 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">Contact Info</h4>
           
           {lead.address_full && (
-            <div className="flex items-start gap-3 text-slate-600">
-              <MapPin className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 text-zinc-600">
+              <MapPin className="w-5 h-5 text-zinc-400 shrink-0 mt-0.5" />
               <span className="text-sm">{lead.address_full}</span>
             </div>
           )}
           
-          <div className="flex items-center gap-3 text-slate-600">
-            <Phone className="w-5 h-5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-3 text-zinc-600">
+            <Phone className="w-5 h-5 text-zinc-400 shrink-0" />
             <span className="text-sm font-mono">{lead.phone}</span>
           </div>
           
-          <div className="flex items-center gap-3 text-slate-600">
-            <Mail className="w-5 h-5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-3 text-zinc-600">
+            <Mail className="w-5 h-5 text-zinc-400 shrink-0" />
             <div className="flex flex-col flex-1">
               <span className="text-sm">{lead.email}</span>
               <div className="flex items-center gap-2">
-                <span className={`text-xs ${needsVerification ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                <span className={`text-xs ${needsVerification ? 'text-amber-600 font-medium' : 'text-zinc-400'}`}>
                   ({lead.email_confidence}{lead.email_verification === 'verified' ? ', verified' : ''})
                 </span>
                 {needsVerification ? (
@@ -134,9 +134,9 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
           </div>
           
           {lead.website && (
-            <div className="flex items-center gap-3 text-slate-600">
-              <Globe className="w-5 h-5 text-slate-400 shrink-0" />
-              <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline truncate">
+            <div className="flex items-center gap-3 text-zinc-600">
+              <Globe className="w-5 h-5 text-zinc-400 shrink-0" />
+              <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-sm text-orange-700 hover:underline truncate">
                 {lead.website}
               </a>
             </div>
@@ -144,20 +144,20 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
         </div>
 
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Business Details</h4>
+          <h4 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">Business Details</h4>
           
-          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+          <div className="bg-zinc-50 rounded-xl p-4 space-y-3">
             <div>
-              <span className="text-xs text-slate-500 font-medium block mb-1">Location</span>
-              <span className="text-sm text-slate-900 font-medium">{lead.city}, {lead.district}</span>
+              <span className="text-xs text-zinc-500 font-medium block mb-1">Location</span>
+              <span className="text-sm text-zinc-900 font-medium">{lead.city}, {lead.district}</span>
             </div>
             <div>
-              <span className="text-xs text-slate-500 font-medium block mb-1">Estimated Size</span>
-              <span className="text-sm text-slate-900 font-medium">{lead.approx_students}</span>
+              <span className="text-xs text-zinc-500 font-medium block mb-1">Estimated Size</span>
+              <span className="text-sm text-zinc-900 font-medium">{lead.approx_students}</span>
             </div>
             <div>
-              <span className="text-xs text-slate-500 font-medium block mb-1">Naver ID</span>
-              <span className="text-sm text-slate-900 font-mono">{lead.naver_id}</span>
+              <span className="text-xs text-zinc-500 font-medium block mb-1">Naver ID</span>
+              <span className="text-sm text-zinc-900 font-mono">{lead.naver_id}</span>
             </div>
           </div>
         </div>

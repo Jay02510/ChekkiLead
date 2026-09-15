@@ -1,7 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* Chekki brand tokens, pulled from chekkiai.com's own CSS (main-D1SZnYrh.css).
+   Noto Sans KR is in the sans stack (not just display) since this app's UI
+   and generated content is bilingual EN/KR throughout. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Onest", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Noto Sans KR", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* chekkiai.com's brightest hero/logo orange — decorative use only (logo
+     mark), not text/button fills, which use Tailwind's orange-700 instead:
+     #fe6e00 fails WCAG's 3:1 non-text floor against white, brand marks are
+     conventionally exempt but button labels are not. */
+  --color-brand: #fe6e00;
 }
