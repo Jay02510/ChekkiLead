@@ -74,7 +74,7 @@ export default async function handler(req: any, res: any) {
         try {
           const withId = { ...item, naver_id: naverId };
           const enriched = await enrichLeadServer(JSON.stringify(withId));
-          await db.collection(LEADS_COLLECTION).doc(enriched.naver_id).set(enriched);
+          await db.collection(LEADS_COLLECTION).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });
           stats.saved++;
           log.push(`Saved: ${stripHtml(item.title)}`);
         } catch (err: any) {

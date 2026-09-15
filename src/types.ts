@@ -39,6 +39,7 @@ export interface EnrichedLead {
   firebase_status: FirebaseStatus;
   email_verification?: VerificationStatus;
   last_contacted_at?: string | null;
+  saved_at?: string;
 }
 
 export interface EmailDraft {

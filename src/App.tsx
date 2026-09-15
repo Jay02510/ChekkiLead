@@ -6,7 +6,7 @@ import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
@@ -38,6 +38,8 @@ export default function App() {
   const [savedLeads, setSavedLeads] = useState<EnrichedLead[]>([]);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [dbFilter, setDbFilter] = useState<string>('all');
+  const [dbSort, setDbSort] = useState<'priority' | 'district' | 'date'>('priority');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Bulk Sweep State — runs a list of queries unattended: search -> dedupe -> enrich -> save
   const [bulkQueries, setBulkQueries] = useState('');
@@ -210,7 +212,7 @@ export default function App() {
           try {
             const withId = { ...item, naver_id: naverId };
             const enriched = await enrichLead(JSON.stringify(withId));
-            await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), enriched);
+            await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), { ...enriched, saved_at: new Date().toISOString() });
             setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
             setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
           } catch (err: any) {
@@ -246,7 +248,7 @@ export default function App() {
   const handleSaveLead = async (lead: EnrichedLead) => {
     try {
       await authReady;
-      await setDoc(doc(db, LEADS_COLLECTION, lead.naver_id), lead);
+      await setDoc(doc(db, LEADS_COLLECTION, lead.naver_id), { ...lead, saved_at: new Date().toISOString() });
       toast.success('Lead saved to Firebase!');
       fetchSavedLeads(); // Refresh to update "Saved" badges
     } catch (err) {
@@ -287,6 +289,60 @@ export default function App() {
     }
   };
 
+  const handleDeleteLead = async (naver_id: string) => {
+    if (!window.confirm('Delete this lead permanently? This cannot be undone.')) return;
+    try {
+      await authReady;
+      await deleteDoc(doc(db, LEADS_COLLECTION, naver_id));
+      toast.success('Lead deleted');
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(naver_id);
+        return next;
+      });
+      fetchSavedLeads();
+    } catch (err) {
+      console.error("Failed to delete lead from Firebase", err);
+      toast.error('Failed to delete lead');
+    }
+  };
+
+  const toggleSelect = (naver_id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(naver_id)) next.delete(naver_id);
+      else next.add(naver_id);
+      return next;
+    });
+  };
+
+  const handleBulkStatusChange = async (status: FirebaseStatus) => {
+    if (selectedIds.size === 0) return;
+    if (status === 'sent' && sentToday + selectedIds.size > DAILY_SEND_CAP) {
+      toast.error(`That would put you over the daily send cap (${DAILY_SEND_CAP}/day) — select fewer leads.`);
+      return;
+    }
+    for (const naver_id of selectedIds) {
+      await handleStatusChange(naver_id, status);
+    }
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} permanently? This cannot be undone.`)) return;
+    try {
+      await authReady;
+      await Promise.all([...selectedIds].map(naver_id => deleteDoc(doc(db, LEADS_COLLECTION, naver_id))));
+      toast.success(`${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} deleted`);
+      setSelectedIds(new Set());
+      fetchSavedLeads();
+    } catch (err) {
+      console.error("Failed to bulk delete leads from Firebase", err);
+      toast.error('Failed to delete some leads');
+    }
+  };
+
   const sentToday = savedLeads.filter(l => {
     if (!l.last_contacted_at) return false;
     const d = new Date(l.last_contacted_at);
@@ -322,7 +378,11 @@ export default function App() {
     toast.success('Database exported to CSV');
   };
 
-  const filteredLeads = dbFilter === 'all' ? savedLeads : savedLeads.filter(l => l.firebase_status === dbFilter);
+  const filteredLeads = [...(dbFilter === 'all' ? savedLeads : savedLeads.filter(l => l.firebase_status === dbFilter))].sort((a, b) => {
+    if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
+    if (dbSort === 'date') return (b.saved_at || '').localeCompare(a.saved_at || '');
+    return b.outreach_priority - a.outreach_priority;
+  });
 
   // Shared between the Search tab's temporary results and the Database
   // tab's saved leads — drafting an email shouldn't require re-searching.
@@ -628,6 +688,15 @@ export default function App() {
                     <option value="opted_out">Opted Out</option>
                   </select>
                 </div>
+                <select
+                  value={dbSort}
+                  onChange={(e) => setDbSort(e.target.value as typeof dbSort)}
+                  className="px-3 py-2 border border-white/10 rounded-lg text-sm font-medium bg-black/20 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 appearance-none cursor-pointer"
+                >
+                  <option value="priority">Sort: Priority</option>
+                  <option value="district">Sort: District</option>
+                  <option value="date">Sort: Date Added</option>
+                </select>
                 <span className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${sentToday >= DAILY_SEND_CAP ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-white/5 text-zinc-400 border-white/10'}`}>
                   Sent today: {sentToday}/{DAILY_SEND_CAP}
                 </span>
@@ -642,18 +711,41 @@ export default function App() {
               </div>
             </div>
 
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+                <span className="text-sm font-semibold text-orange-400">{selectedIds.size} selected</span>
+                <button onClick={() => handleBulkStatusChange('sent')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Sent</button>
+                <button onClick={() => handleBulkStatusChange('replied')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Replied</button>
+                <button onClick={() => handleBulkStatusChange('opted_out')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Opted Out</button>
+                <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-red-500/20">Delete</button>
+                <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors ml-auto">Clear selection</button>
+              </div>
+            )}
+
             {isLoadingDb ? (
               <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-zinc-500" /></div>
             ) : filteredLeads.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
                 {filteredLeads.map(lead => (
                   <div key={lead.naver_id} className="space-y-4">
-                    <LeadCard
-                      lead={lead}
-                      isSaved={true}
-                      onStatusChange={handleStatusChange}
-                      onVerifyEmail={handleVerifyEmail}
-                    />
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead.naver_id)}
+                        onChange={() => toggleSelect(lead.naver_id)}
+                        className="mt-8 w-4 h-4 rounded border-white/20 bg-black/20 accent-orange-500 cursor-pointer shrink-0"
+                        aria-label={`Select ${lead.institution_name_en}`}
+                      />
+                      <div className="flex-1">
+                        <LeadCard
+                          lead={lead}
+                          isSaved={true}
+                          onStatusChange={handleStatusChange}
+                          onVerifyEmail={handleVerifyEmail}
+                          onDelete={handleDeleteLead}
+                        />
+                      </div>
+                    </div>
                     {renderEmailDraftSection(lead)}
                   </div>
                 ))}

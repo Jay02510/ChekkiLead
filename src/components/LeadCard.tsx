@@ -1,6 +1,6 @@
 import React from 'react';
 import { EnrichedLead, FirebaseStatus } from '../types';
-import { Building2, MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Info, Save, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Building2, MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Info, Save, ShieldCheck, ShieldAlert, Trash2 } from 'lucide-react';
 
 interface LeadCardProps {
   lead: EnrichedLead;
@@ -8,10 +8,11 @@ interface LeadCardProps {
   onSave?: (lead: EnrichedLead) => void;
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail?: (naver_id: string) => void;
+  onDelete?: (naver_id: string) => void;
   key?: string | number;
 }
 
-export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail }: LeadCardProps) {
+export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail, onDelete }: LeadCardProps) {
   const needsVerification = lead.email_confidence === 'estimated' && lead.email_verification !== 'verified';
   const getPriorityColor = (priority: number) => {
     if (priority >= 4) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -62,6 +63,16 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail 
                 </select>
                 {lead.last_contacted_at && (
                   <span className="text-[10px] text-zinc-500">Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}</span>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(lead.naver_id)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-zinc-600 hover:text-red-400 transition-colors"
+                    title="Delete this lead permanently"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
                 )}
               </div>
             ) : (
