@@ -1,81 +1,94 @@
 # Chekki Lead Gen — style lock
 
+## Revision history
+- **v2 (current)**: Superseded v1. User pointed at the real Chekki-AI app
+  repo (github.com/Jay02510/Chekki-AI) and asked for something that
+  actually looks like it, not just brand-colored. That repo already had
+  its own `.tastemaker/style-lock.md` + `DESIGN.md` ("The Warm Console")
+  — ported those tokens directly rather than re-deriving a palette from
+  chekkiai.com's marketing CSS. Full dark-mode "instrument panel" theme,
+  double-bezel cards, orange-only accent, black (not white) text on the
+  orange button fill.
+- v1 (superseded): light theme, indigo→orange-700 recolor of Tailwind
+  defaults, derived from chekkiai.com's own shipped CSS. Kept for
+  reference only — not what's live now.
+
 ## Screen classification
-App shell / data view (dashboard). Not a marketing page — no hero,
-no scroll narrative, no macrostructure/diversification rules apply.
-Skip Step 2.5 and heavy Step 3 asset curation on future passes here.
+App shell / data view (dashboard) — same classification Chekki-AI's own
+style-lock uses for its director portal / TeacherPage shell. Not a
+marketing page — no hero, no scroll narrative, no macrostructure step.
 
 ## Source of truth
-Brand tokens extracted directly from chekkiai.com's own shipped CSS
-(`main-D1SZnYrh.css`) and meta tags — not an image extraction, the real
-values. Re-fetch if chekkiai.com rebrands before reusing these.
+Ported verbatim from Chekki-AI's own `DESIGN.md` + `.tastemaker/style-lock.md`
+(fetched 2026-09-15). Those files record real contrast checks already run
+against production tokens — not re-verified here, reused as-is per
+tastemaker's Step 0 rule ("this project already has an established style,
+reuse those exact tokens, don't re-derive").
 
-## Palette (light mode, Tailwind default scales — no custom color config needed)
-- text: zinc-900 `#18181b`
-- bg: white `#ffffff`
-- surface: zinc-50 `#fafafa`
-- border: zinc-200 `#e4e4e7`
-- primary (buttons, active tab, links, focus): orange-700 `#c2410c`
-  - NOT orange-600/500 for text or button fills — see Color contract below.
-- primary tint (badge bg): orange-50 `#fff7ed`, text orange-700
-- accent/success: emerald (Tailwind default emerald-500/700/50) — already
-  matches chekkiai.com's #10b981/#009767 almost exactly, no override needed
-- brand mark (logo tile only): custom `--color-brand: #fe6e00` in
-  src/index.css — chekkiai.com's exact hero orange, decorative/logo-exempt
-  use only, fails the 3:1 non-text floor against white so never use it for
-  buttons, links, or icons that carry meaning
-- amber (priority=3 badge, Fit Reason/Agent Notes panel in LeadCard): left
-  unchanged, deliberately not remapped to brand orange — keeps "insight/
-  warning" visually distinct from "brand action" now that primary is orange
+## Palette (dark, the mode actually shipped here)
+- Background: `#050505` (`--color-brand-dark`) — page base
+- Surface: `#0f1014` (`--color-brand-card`) — cards/panels
+- Primary/Accent: `#f97316` (`--color-brand-orange`) — the ONE accent:
+  CTAs, active states, focus, tinted glows. Never combined with
+  purple/pink/indigo (Chekki-AI's "One Accent Rule" — a past drift
+  incident there, worth not repeating here either).
+- Button label on primary fill: **black**, not white — Chekki-AI's own
+  audit found white-on-orange-500 fails WCAG (2.8:1); black passes at
+  7.49:1. Copied their verified pairing.
+- Text primary: zinc-100 `#f4f4f5`. Text muted: zinc-400/500.
+- Border: `border-white/10` hairline throughout.
+- Elevated hover tint (reserved for hover-only states on interactive
+  cards, not used generally): `#0f0814`
 
-## Color contract (from check_contrast.py --matrix, text=#18181b bg=#ffffff surface=#fafafa primary=#c2410c accent=#009767 border=#e4e4e7 on-primary=#ffffff)
-- Text-safe (>=4.5, use for body/links/button labels): text/bg, text/on-primary,
-  text/surface, text/border, bg/primary, primary/on-primary, surface/primary,
-  text/accent
-- UI-safe (>=3.0, large text/icons/state borders only): primary/border,
-  bg/accent, accent/on-primary, surface/accent, text/primary
-- Decorative (<3.0, hairlines only, never the sole state indicator):
-  accent/border, primary/accent, bg/border, border/on-primary, surface/border
-
-Key gotcha this project already hit: orange-600 (`#ea580c`) as text-on-white
-or button-fill-with-white-text is only 3.56:1 — fails. Always use orange-700
-for anything text-bearing; orange-500/600 stay fine for icons, focus rings,
-and other non-text decoration only.
+## Shape language
+- **Double-bezel construction** on every panel that reads as a discrete
+  surface (Search card, Bulk Sweep card, LeadCard, EmailDraftCard):
+  outer `rounded-[2rem] border border-white/10 p-1.5`, inner
+  `bg-brand-card rounded-[calc(2rem-0.375rem)]` with a
+  `shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]` lit top edge. Ambient
+  shadow on the outer shell (`shadow-[0_20px_50px_rgba(0,0,0,0.35)]`) —
+  soft/large-blur, never a hard drop-shadow, per Chekki-AI's shadow
+  vocabulary.
+- Buttons: `rounded-full` for primary actions (Search, Run Bulk Sweep,
+  Save to Database, Open in Gmail — matches Chekki-AI's "rounded-full for
+  primary/pill actions" rule), `rounded-lg`/`rounded-xl` for
+  secondary/ghost actions.
+- Secondary/ghost buttons: low-opacity orange fill (`bg-orange-500/10
+  border-orange-500/30 text-orange-400`) or neutral white-tint
+  (`bg-white/5 border-white/10`) for non-accent actions — same pattern
+  Chekki-AI uses.
+- Nav pills (Search/Database tabs): active = `bg-orange-500/10
+  border-orange-500/30 text-orange-500` (their sidebar-active-item
+  treatment, ported to a top pill nav here since this app only has 2
+  destinations — a full sidebar would be over-building for that).
+- `active:scale-[0.97]` press feedback on every pressable element.
 
 ## Type
-- `--font-sans`: "Onest", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif
-  — Noto Sans KR is in the base sans stack, not just display, because this
-  app's UI and generated content (search queries, email drafts) is
-  bilingual EN/KR throughout, not just headings.
-- `--font-display`: "Bricolage Grotesque", "Noto Sans KR", ui-sans-serif, sans-serif
-  — applied via `font-display` class on section h2/h3 headings and the
-  LeadCard institution name (the card's visual anchor). NOT applied to
-  small uppercase eyebrow labels (h4s like "Contact Info", "Subject Line")
-  — a display face reads wrong at that size/weight.
-- `--font-mono`: unchanged (JetBrains Mono, used for Naver IDs / raw data)
+Same as v1: Onest (`--font-sans`) body, Bricolage Grotesque
+(`--font-display`) headings, Noto Sans KR added as `--font-korean` utility
+(Chekki-AI has this exact token) plus folded into the base sans stack.
+`break-keep` applied to Korean-bearing display/title text and the email
+draft's Korean body — Chekki-AI's "Break-Keep Rule," so Korean line-wraps
+by word/syllable-block, not mid-character.
 
-## Radius / spacing
-Unchanged — app already used rounded-xl/2xl (12px/16px), which already
-matches chekkiai.com's `--radius-xl`/`--radius-2xl` tokens. No changes made.
+## Motion
+Existing `motion/react` fade/slide entrances, now gated with
+`useReducedMotion()` in App.tsx (was a real gap — Chekki-AI's own lock
+logs the identical gap in one of their modals as "a real, honestly-logged
+gap," so worth actually closing here rather than repeating it).
+`audit_motion.py` still flags LeadCard.tsx/EmailDraftCard.tsx for
+"missing reduced-motion branch" — false positive, those files only have
+a CSS `transition-colors` hover state, no real motion library usage, not
+worth gating.
 
-## Dark mode
-Not implemented. chekkiai.com itself is dark-mode-first, but this is a
-long-session data-dense internal tool (search results, lead tables, email
-drafts) — defaulted to light for scan-ability, matching the app's pre-
-existing light-only design. Revisit only if explicitly requested.
-
-## Assets / motion
-No new assets sourced (no photos/illustrations needed for a dashboard).
-Icons: kept the existing lucide-react set already used throughout — no
-reason to introduce a second icon library. Motion: kept the app's existing
-`motion/react` fade/slide transitions; fixed two pre-existing `transition-all`
-instances (App.tsx) to named `transition-colors` while in the area, per the
-anti-slop motion gate.
-
-## What changed vs. pre-existing design
-Indigo → orange-700 (buttons/active-tab/links, hover states orange-800,
-decorative uses orange-600, tints orange-50/100/200/300). Slate → zinc
-(1:1 rename, same lightness scale, brand uses zinc not slate). Everything
-else (amber priority/insight color, emerald saved/success color, layout,
-spacing, component structure) left as-is — this was a rebrand pass, not a
-redesign.
+## What this pass did NOT do
+- No sidebar restructure — kept the existing top-pill nav, just
+  reskinned its active/inactive states to Chekki-AI's tinted-pill
+  pattern. A full `<aside>` sidebar (their pattern for 5+ nav items) would
+  be over-building for this app's 2 destinations.
+- No light-mode companion for this theme — Chekki-AI has one, documented
+  in their lock, but wasn't asked for here; dark is the only mode shipped.
+- No changes to amber (priority/insight) or emerald (saved/success)
+  semantic colors, beyond opacity-tinting them for the dark background
+  (`bg-amber-500/10 text-amber-400` etc.) — same colors, dark-mode-safe
+  treatment.

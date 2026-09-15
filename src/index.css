@@ -1,17 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,500..900&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
-/* Chekki brand tokens, pulled from chekkiai.com's own CSS (main-D1SZnYrh.css).
-   Noto Sans KR is in the sans stack (not just display) since this app's UI
-   and generated content is bilingual EN/KR throughout. */
+/* Chekki "Warm Console" tokens — ported from the real Chekki-AI app's own
+   DESIGN.md/.tastemaker/style-lock.md (github.com/Jay02510/Chekki-AI), not
+   re-derived. Near-black instrument-panel base, one warm-orange accent.
+   Button label color on the orange fill is intentionally BLACK, not white —
+   their own contrast audit found white-on-orange-500 fails WCAG (2.8:1);
+   black passes at 7.49:1. Copying their verified pairing, not re-checking it. */
 @theme {
   --font-sans: "Onest", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", "Noto Sans KR", ui-sans-serif, sans-serif;
+  --font-korean: "Noto Sans KR", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* chekkiai.com's brightest hero/logo orange — decorative use only (logo
-     mark), not text/button fills, which use Tailwind's orange-700 instead:
-     #fe6e00 fails WCAG's 3:1 non-text floor against white, brand marks are
-     conventionally exempt but button labels are not. */
-  --color-brand: #fe6e00;
+  --color-brand-orange: #f97316;
+  --color-brand-dark: #050505;
+  --color-brand-card: #0f1014;
+  --color-brand-elevated: #0f0814;
 }
