@@ -11,6 +11,9 @@ interface EmailDraftCardProps {
 
 export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }: EmailDraftCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [subjectVariant, setSubjectVariant] = useState<'a' | 'b'>('a');
+
+  const activeSubject = subjectVariant === 'a' ? draft.subject_combined : draft.subject_combined_b;
 
   const handleCopy = (text: string, section: string) => {
     navigator.clipboard.writeText(text);
@@ -19,7 +22,7 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
   };
 
   const handleOpenGmail = () => {
-    const subject = encodeURIComponent(draft.subject_combined);
+    const subject = encodeURIComponent(activeSubject);
     const body = encodeURIComponent(`${draft.body_korean}\n\n${draft.body_english}`);
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${leadEmail || ''}&su=${subject}&body=${body}`, '_blank');
   };
@@ -62,9 +65,22 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
         {/* Subject */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Subject Line</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Subject Line</h4>
+              <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-full p-0.5">
+                {(['a', 'b'] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setSubjectVariant(v)}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase transition-colors ${subjectVariant === v ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
-              onClick={() => handleCopy(draft.subject_combined, 'subject')}
+              onClick={() => handleCopy(activeSubject, 'subject')}
               className="flex items-center gap-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors"
             >
               {copiedSection === 'subject' ? (
@@ -81,7 +97,7 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
             </button>
           </div>
           <div className="p-3 bg-black/20 rounded-lg border border-white/10 text-sm text-zinc-100 font-medium break-keep">
-            {draft.subject_combined}
+            {activeSubject}
           </div>
         </div>
 

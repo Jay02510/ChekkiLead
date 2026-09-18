@@ -9,6 +9,9 @@ const draft: EmailDraft = {
   subject_line_kr: '테스트 제목',
   subject_line_en: 'Test subject',
   subject_combined: '테스트 제목 | Test subject',
+  subject_line_kr_b: '테스트 제목 B',
+  subject_line_en_b: 'Test subject B',
+  subject_combined_b: '테스트 제목 B | Test subject B',
   body_korean: '안녕하세요.',
   body_english: 'Hello.',
   cta_primary: 'https://ai-readiness.chekkiai.com',
@@ -20,6 +23,8 @@ const result = applyEmailCompliance(draft);
 
 assert.ok(result.subject_line_kr.startsWith('(광고)'), 'subject must carry the (광고) label');
 assert.ok(result.subject_combined.startsWith('(광고)'), 'combined subject must carry the (광고) label');
+assert.ok(result.subject_line_kr_b.startsWith('(광고)'), 'subject variant B must carry the (광고) label');
+assert.ok(result.subject_combined_b.startsWith('(광고)'), 'combined subject variant B must carry the (광고) label');
 assert.ok(result.body_korean.includes('수신거부'), 'Korean body must include an opt-out method');
 assert.ok(result.body_korean.includes('contact@chekkiai.com'), 'Korean body must include sender contact');
 assert.ok(result.body_english.includes('unsubscribe'), 'English body must include an opt-out method');

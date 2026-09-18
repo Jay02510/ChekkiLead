@@ -62,7 +62,10 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail,
                   <option value="opted_out">Opted Out</option>
                 </select>
                 {lead.last_contacted_at && (
-                  <span className="text-[10px] text-zinc-500">Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}</span>
+                  <span className="text-[10px] text-zinc-500">
+                    Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}
+                    {' '}({Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / 86400000)}d ago)
+                  </span>
                 )}
                 {onDelete && (
                   <button

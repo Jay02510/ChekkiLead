@@ -85,6 +85,8 @@ export function applyEmailCompliance(draft: EmailDraft): EmailDraft {
     ...draft,
     subject_line_kr: `(광고) ${draft.subject_line_kr}`,
     subject_combined: `(광고) ${draft.subject_combined}`,
+    subject_line_kr_b: `(광고) ${draft.subject_line_kr_b}`,
+    subject_combined_b: `(광고) ${draft.subject_combined_b}`,
     body_korean: `${draft.body_korean}${COMPLIANCE_FOOTER_KR}`,
     body_english: `${draft.body_english}${COMPLIANCE_FOOTER_EN}`,
   };

@@ -36,16 +36,21 @@ export interface EnrichedLead {
   outreach_priority: number;
   fit_reason: string;
   agent_notes?: string;
+  personalization_hook?: string;
   firebase_status: FirebaseStatus;
   email_verification?: VerificationStatus;
   last_contacted_at?: string | null;
   saved_at?: string;
+  sequence_step?: number;
 }
 
 export interface EmailDraft {
   subject_line_kr: string;
   subject_line_en: string;
   subject_combined: string;
+  subject_line_kr_b: string;
+  subject_line_en_b: string;
+  subject_combined_b: string;
   body_korean: string;
   body_english: string;
   cta_primary: string;

@@ -96,7 +96,11 @@ Given the raw Naver data, you must:
 - Never invent addresses — use exactly what Naver provides
 - Email and website are the only fields you may reasonably estimate
 - If institution_type is genuinely unclear, default to "hagwon"
-- naver_id must be copied exactly from the input data`;
+- naver_id must be copied exactly from the input data
+- personalization_hook must be one specific, verifiable fact about the
+  institution — an Instagram handle, a Naver Blog URL, a franchise/
+  independent signal, review count, etc. Never a generic institution-type
+  description ("a hagwon in Gangnam" is not a hook).`;
 
 export const EMAIL_SYSTEM_PROMPT = `You are Jason Benjamin, writing a cold outreach email to a Korean Hagwon director.
 
@@ -115,30 +119,43 @@ Return ONLY valid JSON matching the schema. No preamble, no markdown. Raw JSON o
 ## ABOUT CHEKKI SCHOOLS
 - Chekki AI: freemium app that grades English worksheets via photo scan and gives pronunciation coaching for Korean children.
 - Chekki Schools: hagwon partnership program. Academy sign-up gives its parents free premium Chekki AI access, including a KakaoTalk parent-reporting feature for teachers.
-- This email is a soft, no-pitch opener — the goal is NOT to sell Chekki Schools directly. The goal is to get the director to self-qualify by taking a free 2-minute AI-readiness diagnostic for their academy, which sends them a personalized report by email. No pricing, no commitment, no call requested at this stage.
+- This email is a soft, no-pitch opener — the goal is NOT to sell Chekki Schools directly. The goal is to get the director to self-qualify by taking the AI Readiness Check (AI 준비도 체크) for their academy, a free 2-minute AI-readiness diagnostic that sends them a personalized report by email. No pricing, no commitment, no call requested at this stage.
 
 ## EMAIL WRITING RULES (STRICT CONSTRAINTS)
 
+### PERSONALIZATION HOOK
+- The lead profile's personalization_hook field names one specific, verifiable
+  fact about this institution. Sentence 1 of BOTH bodies must use that exact
+  fact — never invent a hook or fall back on a generic institution-type
+  description.
+
 ### SUBJECT LINE
-- Write one bilingual subject line (Korean | English).
-- Must be short, curiosity-inducing, and highly relevant to their specific institution type.
-- Example: "[Institution Name] 원장님, 학부모님들의 영어 숙제 지도를 돕는 무료 툴입니다 | A Free Tool for Your Parents"
+- Write TWO bilingual subject line variants (Korean | English each):
+  subject_line_kr / subject_line_en / subject_combined (variant A), and
+  subject_line_kr_b / subject_line_en_b / subject_combined_b (variant B).
+  Each must take a different angle (e.g. A = curiosity about their specific
+  detail, B = peer-to-peer educator angle).
+- Must be short and highly relevant to their specific institution — build it
+  around the personalization_hook or institution type/district, not the offer.
+- NEVER use spam-trigger words in the subject line: no "무료"/"Free", no
+  "!!!", no ALL CAPS. Those words are fine inside the body, just not the subject.
+- Example: "[Institution Name] 원장님, 영어 숙제 지도 관련 질문 | A quick question about [Institution]'s English homework routine"
 
 ### KOREAN BODY (body_korean)
 - STRICT LENGTH: Maximum 3 to 4 sentences total. Under 80 words.
 - Tone: Formal 존댓말 (정중한 비즈니스 존댓말). Highly respectful but gets straight to the point. Sound like a fellow educator.
-- Sentence 1 (Hook): Personalised opening mentioning their specific institution.
+- Sentence 1 (Hook): Opening built from personalization_hook, mentioning their specific institution.
 - Sentence 2 (Connection & Problem): "한국에서 10년 넘게 영어를 가르치면서, 학부모님들이 집에서 영어 숙제를 지도하는 데 큰 어려움을 겪는 것을 보았습니다. 이를 돕고자 채키 AI를 개발했습니다." (Adapt this to flow naturally).
-- Sentence 3 (Solution): "저희는 AI 학원 준비도를 무료로 진단해드리는 17문항 체크리스트를 만들었습니다."
+- Sentence 3 (Solution): "저희는 AI 준비도 체크라는 무료 진단을 만들었습니다."
 - Sentence 4 (CTA): Low-friction, self-serve ask, no call requested. "2분이면 끝나는 무료 진단을 받아보시겠어요? 결과는 이메일로 바로 보내드립니다."
 
-### ENGLISH BODY (body_english)  
+### ENGLISH BODY (body_english)
 - STRICT LENGTH: Maximum 3 to 4 sentences total. Under 80 words.
 - Tone: Warm, fellow educator, highly scannable.
-- Sentence 1 (Hook): Genuine observation about their institution (e.g., "I noticed [Institution] focuses on young learners in [District]...").
+- Sentence 1 (Hook): Opening built from personalization_hook (e.g., "I noticed [specific fact from personalization_hook]...").
 - Sentence 2 (Connection & Problem): "Having taught in Korea for over 10 years, I saw how much parents struggle to help with English homework at home, so I built Chekki AI to solve this."
-- Sentence 3 (Solution): "We built a free 17-question AI-readiness diagnostic for hagwons, and it sends a personalised report straight to your inbox."
-- Sentence 4 (CTA): Self-serve, no call requested. "Would you be open to trying the free 2-minute diagnostic — no strings attached?"
+- Sentence 3 (Solution): "We built a free diagnostic called the AI Readiness Check, and it sends a personalised report straight to your inbox."
+- Sentence 4 (CTA): Self-serve, no call requested. "Would you be open to trying the free 2-minute AI Readiness Check — no strings attached?"
 
 ### CTA LINK
 - cta_primary must always be: https://ai-readiness.chekkiai.com
@@ -179,6 +196,7 @@ export const ENRICH_SCHEMA = {
     },
     outreach_priority: { type: Type.INTEGER, description: "Chekki fit score. 5=perfect fit, 1=weak fit." },
     fit_reason: { type: Type.STRING, description: "One sentence explaining the priority score" },
+    personalization_hook: { type: Type.STRING, description: "One specific, verifiable fact about this institution to use as the email hook — e.g. an Instagram handle, a Naver Blog URL, a franchise/independent signal. Never a generic institution-type description." },
     agent_notes: { type: Type.STRING, description: "Useful context for personalising outreach — review count, district notes, contact method recommendation" },
     firebase_status: { type: Type.STRING, description: "Outreach status — always set to not_contacted on creation" }
   },
@@ -186,16 +204,19 @@ export const ENRICH_SCHEMA = {
     "institution_name_en", "institution_name_kr", "institution_type",
     "city", "district", "email", "email_confidence", "phone",
     "naver_id", "student_age_range", "approx_students",
-    "outreach_priority", "fit_reason", "firebase_status"
+    "outreach_priority", "fit_reason", "firebase_status", "personalization_hook"
   ]
 };
 
 export const EMAIL_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    subject_line_kr: { type: Type.STRING, description: "Korean subject line only" },
-    subject_line_en: { type: Type.STRING, description: "English subject line only" },
-    subject_combined: { type: Type.STRING, description: "Full subject: Korean | English format" },
+    subject_line_kr: { type: Type.STRING, description: "Korean subject line only, variant A" },
+    subject_line_en: { type: Type.STRING, description: "English subject line only, variant A" },
+    subject_combined: { type: Type.STRING, description: "Full subject variant A: Korean | English format" },
+    subject_line_kr_b: { type: Type.STRING, description: "Korean subject line only, variant B (different angle from A)" },
+    subject_line_en_b: { type: Type.STRING, description: "English subject line only, variant B (different angle from A)" },
+    subject_combined_b: { type: Type.STRING, description: "Full subject variant B: Korean | English format" },
     body_korean: { type: Type.STRING, description: "Full Korean email body in formal 존댓말. Prose only, no bullet points." },
     body_english: { type: Type.STRING, description: "Full English email body. Warm, fellow-educator tone. Prose only." },
     cta_primary: { type: Type.STRING, description: "Primary CTA URL — always https://ai-readiness.chekkiai.com" },
@@ -209,6 +230,9 @@ export const EMAIL_SCHEMA = {
     "subject_line_kr",
     "subject_line_en",
     "subject_combined",
+    "subject_line_kr_b",
+    "subject_line_en_b",
+    "subject_combined_b",
     "body_korean",
     "body_english",
     "cta_primary",
