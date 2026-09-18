@@ -128,6 +128,10 @@ Return ONLY valid JSON matching the schema. No preamble, no markdown. Raw JSON o
   fact about this institution. Sentence 1 of BOTH bodies must use that exact
   fact — never invent a hook or fall back on a generic institution-type
   description.
+- If personalization_hook is missing (older lead records predate this field),
+  fall back to the most specific verifiable detail available in agent_notes,
+  district, or institution_type, in that order of preference — still never a
+  bare "a hagwon in [district]" description with no distinguishing detail.
 
 ### SUBJECT LINE
 - Write TWO bilingual subject line variants (Korean | English each):
