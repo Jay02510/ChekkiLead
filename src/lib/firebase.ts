@@ -2,7 +2,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, type User } from 'firebase/auth';
 
 // Reads from VITE_FIREBASE_* env vars (see .env.example) when present, so
 // this can point at either AI Studio project without a code change.
@@ -20,9 +20,17 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-// Firestore rules require request.auth != null (see README) — this app has
-// no real login, so an anonymous session is the auth token that satisfies
-// that check. Every Firestore call in App.tsx awaits this first.
-const auth = getAuth(app);
-export const authReady = signInAnonymously(auth).then(() => {});
+// Firestore rules now check request.auth.token.email against an allowlist
+// (see firestore.rules), so anonymous sign-in no longer passes. AuthGate
+// renders a Google sign-in screen until a user exists, so by the time any
+// Firestore call runs, a signed-in user is guaranteed — this promise just
+// resolves once the SDK has reported the first auth state.
+export const authReady: Promise<User | null> = new Promise((resolve) => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    unsubscribe();
+    resolve(user);
+  });
+});

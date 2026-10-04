@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// Only the owner's verified Google account may read or write lead data.
+// Anonymous auth is gone (see src/lib/firebase.ts, src/AuthGate.tsx) — this
+// closes the hole where anyone with the public Firebase config (it's in
+// this repo) could sign in anonymously and read/write every lead.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == "jsn.benjamin@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    match /leads/{leadId} {
+      allow read, write: if isOwner();
+    }
+
+    match /leads_dev/{leadId} {
+      allow read, write: if isOwner();
+    }
+
+    match /config/{configId} {
+      allow read, write: if isOwner();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
