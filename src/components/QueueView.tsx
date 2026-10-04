@@ -14,6 +14,8 @@ interface QueueViewProps {
   onFilter: (v: string) => void;
   sort: DbSort;
   onSort: (v: DbSort) => void;
+  showNonTargets: boolean;
+  onShowNonTargets: (v: boolean) => void;
   listQuery: string;
   onListQuery: (v: string) => void;
   selectedId: string | null;
@@ -102,6 +104,10 @@ export function QueueView(p: QueueViewProps) {
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input type="checkbox" checked={p.showNonTargets} onChange={(e) => p.onShowNonTargets(e.target.checked)} className="w-3.5 h-3.5 accent-orange-500" />
+            Show non-targets
+          </label>
           <label className="flex items-center gap-2 text-xs text-zinc-400">
             Sort
             <select

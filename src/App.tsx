@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { enrichLead, generateEmailDraft } from './services/geminiService';
 import { EnrichedLead, EmailDraft, NaverSearchResult, FirebaseStatus } from './types';
 import { getNaverId, stripHtml } from './lib/naverId';
+import { isLikelyTarget } from './lib/leadFilter';
 import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { QueueView, DbSort } from './components/QueueView';
@@ -50,9 +51,9 @@ export default function App() {
   const [bulkQueries, setBulkQueries] = useState('');
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [bulkLog, setBulkLog] = useState<string[]>([]);
-  const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, failed: 0 });
+  const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, filtered: 0, failed: 0 });
   const [matrixDistricts, setMatrixDistricts] = useState('강남구, 서초구, 송파구, 마포구, 분당구');
-  const [matrixKeywords, setMatrixKeywords] = useState('영어학원, 유치원');
+  const [matrixKeywords, setMatrixKeywords] = useState('영어유치원, 어린이영어학원, 초등영어학원, 키즈영어');
 
   useEffect(() => {
     // Always fetch saved leads on mount so we can cross-reference in search
@@ -133,10 +134,15 @@ export default function App() {
   const handleBatchEnrich = async () => {
     if (searchResults.length === 0) return;
 
-    const toProcess = searchResults.filter(r => !savedIds.has(getNaverId(r)));
-    const skipped = searchResults.length - toProcess.length;
+    const unsaved = searchResults.filter(r => !savedIds.has(getNaverId(r)));
+    const toProcess = unsaved.filter(isLikelyTarget);
+    const skipped = searchResults.length - unsaved.length;
+    const filtered = unsaved.length - toProcess.length;
     if (skipped > 0) {
       toast.info(`Skipping ${skipped} result${skipped > 1 ? 's' : ''} already in your database`);
+    }
+    if (filtered > 0) {
+      toast.info(`Filtered ${filtered} non-target result${filtered > 1 ? 's' : ''} (test-prep, kindergarten or not a school)`);
     }
     if (toProcess.length === 0) {
       toast.info('Nothing new to enrich — every result here is already saved.');
@@ -183,7 +189,7 @@ export default function App() {
 
     setIsBulkRunning(true);
     setBulkLog([]);
-    setBulkStats({ queriesDone: 0, queriesTotal: queries.length, saved: 0, skipped: 0, failed: 0 });
+    setBulkStats({ queriesDone: 0, queriesTotal: queries.length, saved: 0, skipped: 0, filtered: 0, failed: 0 });
 
     await authReady;
     const seen = new Set(savedIds);
@@ -211,6 +217,11 @@ export default function App() {
             continue;
           }
           seen.add(naverId);
+          if (!isLikelyTarget(item)) {
+            setBulkStats(s => ({ ...s, filtered: s.filtered + 1 }));
+            setBulkLog(l => [`Filtered: ${stripHtml(item.title)} (${item.category})`, ...l]);
+            continue;
+          }
           try {
             const enriched = await enrichLead(item);
             await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), { ...enriched, saved_at: new Date().toISOString() });
@@ -412,7 +423,8 @@ export default function App() {
 
   // savedLeads itself keeps soft-deleted leads (needed for dedupe — see
   // handleBulkSweep's `seen` set); only the list view hides them.
-  const visibleLeads = savedLeads.filter(l => !l.deleted);
+  const [showNonTargets, setShowNonTargets] = useState(false);
+  const visibleLeads = savedLeads.filter(l => !l.deleted && (showNonTargets || !l.non_target));
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: visibleLeads.length };
     visibleLeads.forEach(l => { c[l.firebase_status] = (c[l.firebase_status] || 0) + 1; });
@@ -535,6 +547,8 @@ export default function App() {
           onFilter={setDbFilter}
           sort={dbSort}
           onSort={setDbSort}
+          showNonTargets={showNonTargets}
+          onShowNonTargets={setShowNonTargets}
           listQuery={listQuery}
           onListQuery={setListQuery}
           selectedId={selectedLeadId}
@@ -673,6 +687,7 @@ export default function App() {
                       <div className="flex items-center gap-3 text-sm mb-2 tabular-nums">
                         <span className="text-emerald-300">Saved {bulkStats.saved}</span>
                         <span className="text-zinc-400">Skipped {bulkStats.skipped}</span>
+                        <span className="text-zinc-400">Filtered {bulkStats.filtered}</span>
                         {bulkStats.failed > 0 && <span className="text-red-300">Failed {bulkStats.failed}</span>}
                       </div>
                       <div className="max-h-40 overflow-y-auto space-y-1 bg-black/30 rounded-lg border border-white/10 p-3" role="log">

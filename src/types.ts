@@ -44,6 +44,7 @@ export interface EnrichedLead {
   sequence_step?: number;
   deleted?: boolean;
   naver_raw?: NaverSearchResult;
+  non_target?: boolean;
 }
 
 export interface EmailDraft {

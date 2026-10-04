@@ -1,6 +1,7 @@
 import { adminDb } from "../src/lib/firebaseAdmin.js";
 import { searchNaver, enrichLeadServer } from "../src/lib/serverActions.js";
 import { getNaverId, stripHtml } from "../src/lib/naverId.js";
+import { isLikelyTarget } from "../src/lib/leadFilter.js";
 
 // Runs the same search -> dedupe -> enrich -> save pipeline as the UI's
 // "Bulk Sweep" button, unattended, on Vercel Cron (see vercel.json).
@@ -25,7 +26,7 @@ import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 // settings UI — edit this array and redeploy to change targets. Add a
 // settings doc/UI when that friction is actually felt, not before.
 const DISTRICTS = ["강남구", "서초구", "송파구", "마포구", "분당구"];
-const KEYWORDS = ["영어학원", "유치원"];
+const KEYWORDS = ["영어유치원", "어린이영어학원", "초등영어학원", "키즈영어"];
 const QUERIES = DISTRICTS.flatMap(d => KEYWORDS.map(k => `${d} ${k}`));
 const QUERIES_PER_RUN = 1;
 const MAX_PAGES_PER_QUERY = 1;
@@ -47,7 +48,7 @@ export default async function handler(req: any, res: any) {
   const existing = await db.collection(LEADS_COLLECTION).select().get();
   const seen = new Set(existing.docs.map(d => d.id));
 
-  const stats = { queriesRun: 0, saved: 0, skipped: 0, failed: 0 };
+  const stats = { queriesRun: 0, saved: 0, skipped: 0, filtered: 0, failed: 0 };
   const log: string[] = [];
 
   for (const q of todaysQueries) {
@@ -71,6 +72,13 @@ export default async function handler(req: any, res: any) {
           continue;
         }
         seen.add(naverId);
+        // Cheap category/title check first — don't spend a Gemini call on
+        // adult test-prep schools, kindergartens or non-schools.
+        if (!isLikelyTarget(item)) {
+          stats.filtered++;
+          log.push(`Filtered: ${stripHtml(item.title)} (${item.category})`);
+          continue;
+        }
         try {
           const enriched = await enrichLeadServer(item);
           await db.collection(LEADS_COLLECTION).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });

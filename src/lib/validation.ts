@@ -49,6 +49,7 @@ export const EnrichedLeadSchema = z.object({
   saved_at: z.string().optional(),
   sequence_step: z.number().optional(),
   deleted: z.boolean().optional(),
+  non_target: z.boolean().optional(),
   naver_raw: NaverItemSchema.optional(),
 });
 
