@@ -168,6 +168,8 @@ export const ENRICH_SCHEMA = {
     institution_name_kr: { type: Type.STRING, description: "Clean Korean name, no HTML tags" },
     institution_type: {
       type: Type.STRING,
+      format: "enum",
+      enum: ["hagwon", "elementary_school", "kindergarten", "international_school", "tutoring_centre"],
       description: "hagwon, elementary_school, international_school, kindergarten, tutoring_centre"
     },
     city: { type: Type.STRING, description: "City in Korea e.g. Seoul, Busan, Incheon, Seongnam" },
@@ -175,7 +177,12 @@ export const ENRICH_SCHEMA = {
     address_full: { type: Type.STRING, description: "Full address exactly as returned by Naver" },
     director_name: { type: Type.STRING, description: "Director or principal name if found. null if not available.", nullable: true },
     email: { type: Type.STRING, description: "Contact email — real if scraped, estimated if constructed" },
-    email_confidence: { type: Type.STRING, description: "scraped, estimated, or unknown" },
+    email_confidence: {
+      type: Type.STRING,
+      format: "enum",
+      enum: ["scraped", "estimated", "unknown"],
+      description: "scraped, estimated, or unknown"
+    },
     phone: { type: Type.STRING, description: "Exact phone from Naver data. Never invented." },
     website: { type: Type.STRING, description: "Website URL from Naver or null", nullable: true },
     naver_id: { type: Type.STRING, description: "Unique Naver place ID — copied exactly from input. Used for deduplication in Firebase." },
@@ -184,7 +191,11 @@ export const ENRICH_SCHEMA = {
     approx_students: { type: Type.STRING, description: "Estimated student count e.g. 60–100 students" },
     cefr_levels_taught: {
       type: Type.ARRAY,
-      items: { type: Type.STRING },
+      items: {
+        type: Type.STRING,
+        format: "enum",
+        enum: ["Pre-A1", "A1", "A2", "B1", "B2", "C1"],
+      },
       description: "CEFR levels this institution likely teaches (Pre-A1, A1, A2, B1, B2, C1)"
     },
     outreach_priority: { type: Type.INTEGER, description: "Chekki fit score. 5=perfect fit, 1=weak fit." },

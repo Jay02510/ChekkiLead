@@ -5,6 +5,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA } from "./geminiPrompts.js";
 import { getNaverId } from "./naverId.js";
+import { EnrichedLeadSchema, EmailDraftSchema } from "./validation.js";
 import type { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
 function genaiClient() {
@@ -71,21 +72,36 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
 export async function enrichLeadServer(item: NaverSearchResult): Promise<EnrichedLead> {
   if (!item) throw Object.assign(new Error("item is required."), { status: 400 });
 
-  const naverId = getNaverId(item);
   const ai = genaiClient();
-  const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: JSON.stringify({ ...item, naver_id: naverId }),
-    config: {
-      systemInstruction: SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      responseSchema: ENRICH_SCHEMA,
-    },
-  }));
+  let lastError: unknown;
 
-  const text = response.text;
-  if (!text) throw Object.assign(new Error("No response from Gemini."), { status: 502 });
-  return applyNaverTruth(item, JSON.parse(text) as EnrichedLead);
+  // One retry covers a malformed-JSON or schema-validation failure, same as
+  // withRetry covers a transient 503 — either way, a malformed lead is never
+  // returned (and so never saved) without at least one second attempt.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const naverId = getNaverId(item);
+      const response = await withRetry(() => ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: JSON.stringify({ ...item, naver_id: naverId }),
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: ENRICH_SCHEMA,
+        },
+      }));
+
+      const text = response.text;
+      if (!text) throw new Error("No response from Gemini.");
+      const candidate = applyNaverTruth(item, JSON.parse(text));
+      return EnrichedLeadSchema.parse(candidate) as EnrichedLead;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw Object.assign(new Error(`Gemini returned a malformed lead after retry: ${message}`), { status: 502 });
 }
 
 // Korea's 정보통신망법 (Act on Promotion of Information and Communications
@@ -112,17 +128,29 @@ export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraf
   if (!lead) throw Object.assign(new Error("lead is required."), { status: 400 });
 
   const ai = genaiClient();
-  const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: JSON.stringify(lead),
-    config: {
-      systemInstruction: EMAIL_SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      responseSchema: EMAIL_SCHEMA,
-    },
-  }));
+  let lastError: unknown;
 
-  const text = response.text;
-  if (!text) throw Object.assign(new Error("No response from Gemini."), { status: 502 });
-  return applyEmailCompliance(JSON.parse(text));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await withRetry(() => ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: JSON.stringify(lead),
+        config: {
+          systemInstruction: EMAIL_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: EMAIL_SCHEMA,
+        },
+      }));
+
+      const text = response.text;
+      if (!text) throw new Error("No response from Gemini.");
+      const candidate = EmailDraftSchema.parse(JSON.parse(text)) as EmailDraft;
+      return applyEmailCompliance(candidate);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw Object.assign(new Error(`Gemini returned a malformed email draft after retry: ${message}`), { status: 502 });
 }
