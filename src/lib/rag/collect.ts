@@ -30,6 +30,8 @@ export interface Source {
   type: SourceType;
   title: string;
   postdate: string | null;
+  // search = a Naver blog search snippet; page = a URL we fetched ourselves.
+  via: "search" | "page";
   status: "ok" | "error";
   error: string | null;
   text: string;
@@ -366,13 +368,13 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
       const text = `${post.title}\n${post.description}`;
       const id = sourceIdFor(normalizeUrl(post.link));
       add({
-        url: post.link, type: classifyBlogPost(post, lead), title: post.title, postdate: post.postdate || null,
+        url: post.link, type: classifyBlogPost(post, lead), title: post.title, postdate: post.postdate || null, via: "search",
         status: "ok", error: null, text, emails: extractEmails(text),
         chunks: [{ id: `${id}#0`, text }],
       });
     }
   } catch (err: any) {
-    add({ url: `naver-blog-search:${lead.institution_name_kr}`, type: "blog_third_party", title: "Naver blog search", postdate: null, status: "error", error: `blog_search_failed: ${err.message}`, text: "", emails: [] });
+    add({ url: `naver-blog-search:${lead.institution_name_kr}`, type: "blog_third_party", title: "Naver blog search", postdate: null, via: "search", status: "error", error: `blog_search_failed: ${err.message}`, text: "", emails: [] });
   }
   await sleep(300);
 
@@ -383,14 +385,14 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
     const type: SourceType = own ? "blog_own" : "website";
     const unsupported = unsupportedReason(url);
     if (unsupported) {
-      add({ url, type, title: "", postdate: null, status: "error", error: unsupported, text: "", emails: [] });
+      add({ url, type, title: "", postdate: null, via: "page", status: "error", error: unsupported, text: "", emails: [] });
       continue;
     }
     try {
       const page = await fetchPage(url, fetchImpl);
-      add({ url, type, title: page.title, postdate: null, status: "ok", error: null, text: page.text, emails: page.emails });
+      add({ url, type, title: page.title, postdate: null, via: "page", status: "ok", error: null, text: page.text, emails: page.emails });
     } catch (err: any) {
-      add({ url, type, title: "", postdate: null, status: "error", error: err.message, text: "", emails: [] });
+      add({ url, type, title: "", postdate: null, via: "page", status: "error", error: err.message, text: "", emails: [] });
     }
     await sleep(500);
   }
