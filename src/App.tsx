@@ -326,13 +326,34 @@ export default function App() {
     });
   };
 
+  // Same rule LeadCard enforces on a single lead (needsVerification), plus
+  // 'unknown' confidence — the bulk path called handleStatusChange directly
+  // and skipped this check entirely, so "Mark Sent" could send to unverified
+  // or wholly unknown addresses.
+  const isBlockedFromSending = (lead: EnrichedLead) =>
+    lead.email_confidence === 'unknown' ||
+    (lead.email_confidence === 'estimated' && lead.email_verification !== 'verified');
+
   const handleBulkStatusChange = async (status: FirebaseStatus) => {
     if (selectedIds.size === 0) return;
     if (status === 'sent' && sentToday + selectedIds.size > DAILY_SEND_CAP) {
       toast.error(`That would put you over the daily send cap (${DAILY_SEND_CAP}/day) — select fewer leads.`);
       return;
     }
-    for (const naver_id of selectedIds) {
+
+    let targets = [...selectedIds];
+    if (status === 'sent') {
+      const blocked = targets
+        .map(id => savedLeads.find(l => l.naver_id === id))
+        .filter((l): l is EnrichedLead => !!l && isBlockedFromSending(l));
+      if (blocked.length > 0) {
+        const blockedIds = new Set(blocked.map(l => l.naver_id));
+        targets = targets.filter(id => !blockedIds.has(id));
+        toast.error(`Skipped ${blocked.length} lead${blocked.length > 1 ? 's' : ''} (email not verified): ${blocked.map(l => l.institution_name_en).join(', ')}`);
+      }
+    }
+
+    for (const naver_id of targets) {
       await handleStatusChange(naver_id, status);
     }
     setSelectedIds(new Set());
