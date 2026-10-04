@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "chekki-lead",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "vitest run",
-    "start": "node server.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
