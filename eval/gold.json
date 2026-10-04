@@ -1,0 +1,970 @@
+[
+  {
+    "naver_id": "hash_14octws",
+    "name_kr": "성산아트유치원",
+    "naver_link": "https://sungsanart.hkapp.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>성산아트유치원</b>",
+      "link": "https://sungsanart.hkapp.kr/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 성산동 200-209",
+      "roadAddress": "서울특별시 마포구 새터산2길 34",
+      "mapx": "1269091011",
+      "mapy": "375653653"
+    },
+    "website": "https://sungsanart.hkapp.kr/",
+    "draft_note": "Site returned 403; nothing drafted."
+  },
+  {
+    "naver_id": "hash_10qzet3",
+    "name_kr": "신아유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>신아유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 일원동 615",
+      "roadAddress": "서울특별시 강남구 개포로110길 15",
+      "mapx": "1270773766",
+      "mapy": "374920822"
+    }
+  },
+  {
+    "naver_id": "hash_oompp1",
+    "name_kr": "컬컴 잠실점",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>컬컴 잠실점</b>",
+      "link": "",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 송파동 7-8 2층 컬컴 잠실점",
+      "roadAddress": "서울특별시 송파구 송파대로 472 2층 컬컴 잠실점",
+      "mapx": "1271047855",
+      "mapy": "375084036"
+    }
+  },
+  {
+    "naver_id": "hash_12cctea",
+    "name_kr": "여나유치원",
+    "naver_link": "http://www.yeonakindergarten.com",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>여나유치원</b>",
+      "link": "http://www.yeonakindergarten.com",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 서초동 1685 여나유치원",
+      "roadAddress": "서울특별시 서초구 서초중앙로 200 여나유치원",
+      "mapx": "1270140001",
+      "mapy": "374996908"
+    },
+    "website": "http://www.yeonakindergarten.com",
+    "draft_note": "Site returned 403; nothing drafted."
+  },
+  {
+    "naver_id": "hash_1er88qr",
+    "name_kr": "판교반디유치원",
+    "naver_link": "https://pangyobandi-k.goesn.kr",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>판교반디유치원</b>",
+      "link": "https://pangyobandi-k.goesn.kr",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 대장동 198-2",
+      "roadAddress": "",
+      "mapx": "1270696949",
+      "mapy": "373671610"
+    },
+    "website": "https://pangyobandi-k.goesn.kr",
+    "draft_note": "URL is the Seongnam education office, not the kindergarten. Wrong link? Nothing drafted."
+  },
+  {
+    "naver_id": "hash_stsyfz",
+    "name_kr": "삼성유치원",
+    "naver_link": "http://www.samsungkinder.com",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": "Describes itself as a play-centered traditional kindergarten at 양현로 220, Bundang",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": [
+          "http://www.samsungkinder.com"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>삼성유치원</b>",
+      "link": "http://www.samsungkinder.com",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 이매동 100 삼성유치원",
+      "roadAddress": "경기도 성남시 분당구 양현로 220 삼성유치원",
+      "mapx": "1271266326",
+      "mapy": "374023636"
+    },
+    "website": "http://www.samsungkinder.com",
+    "draft_note": "Site gives no ages, English program or email. Hook is a philosophy statement (play-centered), weak."
+  },
+  {
+    "naver_id": "hash_wr3hnc",
+    "name_kr": "나교수어학원",
+    "naver_link": "https://t.aca2000.co.kr/onlineReserve?t=NzQ1NDVeXl4y",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>나교수어학원</b>",
+      "link": "https://t.aca2000.co.kr/onlineReserve?t=NzQ1NDVeXl4y",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 노고산동 40-1 적암빌딩 5층",
+      "roadAddress": "서울특별시 마포구 신촌로 128 적암빌딩 5층",
+      "mapx": "1269399098",
+      "mapy": "375557311"
+    },
+    "website": "https://t.aca2000.co.kr/onlineReserve?t=NzQ1NDVeXl4y",
+    "draft_note": "Booking link, not fetched."
+  },
+  {
+    "naver_id": "hash_1n7960s",
+    "name_kr": "해커스어학원 강남역캠퍼스 제5별관",
+    "naver_link": "http://www.hackers.ac/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>해커스어학원 강남역캠퍼스 제5별관</b>",
+      "link": "http://www.hackers.ac/",
+      "category": "어학교육>토익",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 서초동 1308-25 2층",
+      "roadAddress": "서울특별시 서초구 서초대로73길 40 2층",
+      "mapx": "1270244389",
+      "mapy": "375008877"
+    },
+    "website": "http://www.hackers.ac/",
+    "draft_note": "Adult test-prep (TOEIC/TOEFL/TEPS). Ages and email not stated. Same site as 본관 — it lists campuses, not this branch's details."
+  },
+  {
+    "naver_id": "hash_zer1jc",
+    "name_kr": "퍼스널 잉글리쉬",
+    "naver_link": "https://www.personalenglish.co.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": "Uses a self-described 'ReNewAll System' teaching method; located at 테헤란로1길 10, 5층",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": [
+          "https://www.personalenglish.co.kr/"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>퍼스널 잉글리쉬</b>",
+      "link": "https://www.personalenglish.co.kr/",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 역삼동 819-10 세경빌딩 5층",
+      "roadAddress": "서울특별시 강남구 테헤란로1길 10 세경빌딩 5층",
+      "mapx": "1270282179",
+      "mapy": "374989622"
+    },
+    "website": "https://www.personalenglish.co.kr/",
+    "draft_note": "Adult/business programs. Age and email not stated."
+  },
+  {
+    "naver_id": "hash_1g7pnor",
+    "name_kr": "DYB최선어학원 분당 직영",
+    "naver_link": "https://www.choisun.co.kr/main/?CAMP_LOCA_CD=004",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": "dybitcenter@gmail.com",
+      "hook_fact": "Bundang campus is at 경기 성남시 분당구 백현로101번길 30 XY빌딩 4층 (tel 031-716-2945)",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [
+          "https://www.choisun.co.kr/main/?CAMP_LOCA_CD=004"
+        ],
+        "hook": [
+          "https://www.choisun.co.kr/main/?CAMP_LOCA_CD=004"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>DYB최선어학원 분당 직영</b>",
+      "link": "https://www.choisun.co.kr/main/?CAMP_LOCA_CD=004",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 수내동 17-1 엑스와이빌딩 4층",
+      "roadAddress": "경기도 성남시 분당구 백현로101번길 30 엑스와이빌딩 4층",
+      "mapx": "1271138871",
+      "mapy": "373778278"
+    },
+    "website": "https://www.choisun.co.kr/main/?CAMP_LOCA_CD=004",
+    "draft_note": "Page lists elementary/middle/high programs but no ages — fill age yourself. Email is on the page; confirm it is this campus's and not a shared DYB address."
+  },
+  {
+    "naver_id": "hash_5mx9gm",
+    "name_kr": "리틀러너스",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>리틀러너스</b>",
+      "link": "",
+      "category": "교육,학문>유아학습",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 반포동 110-3",
+      "roadAddress": "서울특별시 서초구 서래로5길 61",
+      "mapx": "1269947533",
+      "mapy": "374978167"
+    }
+  },
+  {
+    "naver_id": "hash_zp3w8m",
+    "name_kr": "피아이어학원",
+    "naver_link": "http://www.peai-dc.co.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": "Runs speech, debate and writing competitions for grades 2-6; 2026 Speech Competition (G2~G4) winners announced Oct 1",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": [
+          "http://www.peai-dc.co.kr/"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>피아이어학원</b>",
+      "link": "http://www.peai-dc.co.kr/",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 대치동 977-16 1층, 2층 피아이어학원",
+      "roadAddress": "서울특별시 강남구 삼성로64길 51 1층, 2층 피아이어학원",
+      "mapx": "1270644853",
+      "mapy": "375011029"
+    },
+    "website": "http://www.peai-dc.co.kr/",
+    "draft_note": "Page mentions G2~G6 (grades 2-6) competitions only; I did not convert grades to ages. Levels and email not stated."
+  },
+  {
+    "naver_id": "hash_1fpn5n0",
+    "name_kr": "OTP영어학원",
+    "naver_link": "https://pf.kakao.com/_JuAZT/chat",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>OTP영어학원</b>",
+      "link": "https://pf.kakao.com/_JuAZT/chat",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 역삼동 827-48 3층",
+      "roadAddress": "서울특별시 강남구 테헤란로8길 26 3층",
+      "mapx": "1270317839",
+      "mapy": "374971865"
+    },
+    "website": "https://pf.kakao.com/_JuAZT/chat",
+    "draft_note": "Kakao chat link, not fetched."
+  },
+  {
+    "naver_id": "hash_6pqg8a",
+    "name_kr": "아름다운유치원",
+    "naver_link": "https://www.instagram.com/beautykids_1992/?__pwa=1",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>아름다운유치원</b>",
+      "link": "https://www.instagram.com/beautykids_1992/?__pwa=1",
+      "category": "교육,학문>사인사립유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 수내동 74",
+      "roadAddress": "경기도 성남시 분당구 돌마로356번길 31",
+      "mapx": "1271254561",
+      "mapy": "373676613"
+    },
+    "website": "https://www.instagram.com/beautykids_1992/?__pwa=1",
+    "draft_note": "Instagram, not fetched."
+  },
+  {
+    "naver_id": "hash_15h44",
+    "name_kr": "리아유치원",
+    "naver_link": "https://lea1989.kidsnote.ac",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>리아유치원</b>",
+      "link": "https://lea1989.kidsnote.ac",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 방이동 89",
+      "roadAddress": "서울특별시 송파구 양재대로 1218",
+      "mapx": "1271352278",
+      "mapy": "375133409"
+    },
+    "website": "https://lea1989.kidsnote.ac",
+    "draft_note": "kidsnote site failed (SSL error). Nothing drafted."
+  },
+  {
+    "naver_id": "hash_ezl8g3",
+    "name_kr": "앳빌듀 어학원 분당센터",
+    "naver_link": "https://www.instagram.com/atbuildu",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>앳빌듀 어학원 분당센터</b>",
+      "link": "https://www.instagram.com/atbuildu",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 서현동 265-6 7층 702호",
+      "roadAddress": "경기도 성남시 분당구 황새울로312번길 20 7층 702호",
+      "mapx": "1271220758",
+      "mapy": "373830255"
+    },
+    "website": "https://www.instagram.com/atbuildu",
+    "draft_note": "Instagram, not fetched."
+  },
+  {
+    "naver_id": "hash_reijsa",
+    "name_kr": "월스트리트 잉글리시 분당센터",
+    "naver_link": "https://blog.naver.com/wsekorea",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>월스트리트 잉글리시 분당센터</b>",
+      "link": "https://blog.naver.com/wsekorea",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 서현동 261-5 N타운빌딩 6층",
+      "roadAddress": "경기도 성남시 분당구 황새울로335번길 5 N타운빌딩 6층",
+      "mapx": "1271216975",
+      "mapy": "373860468"
+    },
+    "website": "https://blog.naver.com/wsekorea",
+    "draft_note": "Naver blog, not fetched."
+  },
+  {
+    "naver_id": "hash_9qht8b",
+    "name_kr": "함영원영어학원",
+    "naver_link": "https://www.youtube.com/@함영원영어학원",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>함영원영어학원</b>",
+      "link": "https://www.youtube.com/@함영원영어학원",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 대치동 605-2",
+      "roadAddress": "서울특별시 강남구 남부순환로 2937",
+      "mapx": "1270615710",
+      "mapy": "374941517"
+    },
+    "website": "https://www.youtube.com/@함영원영어학원",
+    "draft_note": "YouTube, not fetched."
+  },
+  {
+    "naver_id": "hash_tadja4",
+    "name_kr": "신촌 프로젝트",
+    "naver_link": "https://www.sinchonproject.co.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": "Operating an offline English discussion class space since December 2022",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": [
+          "https://www.sinchonproject.co.kr/"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>신촌 프로젝트</b>",
+      "link": "https://www.sinchonproject.co.kr/",
+      "category": "어학교육>영어회화",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 노고산동 31-154 서강 창선빌딩 A동 3층",
+      "roadAddress": "서울특별시 마포구 백범로5길 11 서강 창선빌딩 A동 3층",
+      "mapx": "1269378563",
+      "mapy": "375530288"
+    },
+    "website": "https://www.sinchonproject.co.kr/",
+    "draft_note": "English discussion classes (adult-looking, unconfirmed). Ages, levels, email not stated."
+  },
+  {
+    "naver_id": "hash_1yuyp8l",
+    "name_kr": "서울솔방울유치원",
+    "naver_link": "http://www.서울솔방울유치원.kr",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>서울솔방울유치원</b>",
+      "link": "http://www.서울솔방울유치원.kr",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 송파동 162-3",
+      "roadAddress": "서울특별시 송파구 오금로24길 25",
+      "mapx": "1271174605",
+      "mapy": "375048404"
+    },
+    "website": "http://www.서울솔방울유치원.kr",
+    "draft_note": "Site returned empty content. Nothing drafted."
+  },
+  {
+    "naver_id": "hash_18tps53",
+    "name_kr": "은선유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>은선유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 가락동 125-10 은선유치원",
+      "roadAddress": "서울특별시 송파구 동남로11길 27 은선유치원",
+      "mapx": "1271263652",
+      "mapy": "374921685"
+    }
+  },
+  {
+    "naver_id": "hash_in2jw6",
+    "name_kr": "프라임아이엘츠 홍대센터",
+    "naver_link": "https://blog.naver.com/primeielts",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>프라임아이엘츠 홍대센터</b>",
+      "link": "https://blog.naver.com/primeielts",
+      "category": "어학교육>IELTS",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 동교동 165-8 엘지팰리스빌딩 603호",
+      "roadAddress": "서울특별시 마포구 양화로 156 엘지팰리스빌딩 603호",
+      "mapx": "1269234581",
+      "mapy": "375560982"
+    },
+    "website": "https://blog.naver.com/primeielts",
+    "draft_note": "Naver blog, not fetched."
+  },
+  {
+    "naver_id": "hash_1mlvzat",
+    "name_kr": "마포대진유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>마포대진유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 연남동 493-6 마포대진유치원",
+      "roadAddress": "서울특별시 마포구 성미산로 110 마포대진유치원",
+      "mapx": "1269193500",
+      "mapy": "375619167"
+    }
+  },
+  {
+    "naver_id": "hash_16xw01c",
+    "name_kr": "해커스어학원 강남역캠퍼스 본관",
+    "naver_link": "http://www.hackers.ac/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": "Hackers Academy has Gangnam Station, Jongno and Daegu campuses (site-level, not branch-specific)",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": [
+          "http://www.hackers.ac/"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>해커스어학원 강남역캠퍼스 본관</b>",
+      "link": "http://www.hackers.ac/",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 서초동 1316-15 현대성우빌딩 1층",
+      "roadAddress": "서울특별시 서초구 강남대로61길 23 현대성우빌딩 1층",
+      "mapx": "1270243029",
+      "mapy": "374985036"
+    },
+    "website": "http://www.hackers.ac/",
+    "draft_note": "Adult test-prep. Ages and email not stated."
+  },
+  {
+    "naver_id": "hash_14yk93z",
+    "name_kr": "파고다어학원 강남",
+    "naver_link": "http://www.pagoda21.com/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>파고다어학원 강남</b>",
+      "link": "http://www.pagoda21.com/",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 서초동 1306-6 5층",
+      "roadAddress": "서울특별시 서초구 강남대로 419 5층",
+      "mapx": "1270263150",
+      "mapy": "374998230"
+    },
+    "website": "http://www.pagoda21.com/",
+    "draft_note": "Site returned 404. Nothing drafted."
+  },
+  {
+    "naver_id": "hash_219zpo",
+    "name_kr": "뽀뽀뽀유치원",
+    "naver_link": "https://blog.naver.com/pppkinder",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>뽀뽀뽀유치원</b>",
+      "link": "https://blog.naver.com/pppkinder",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 야탑동 207-2 뽀뽀뽀유치원",
+      "roadAddress": "경기도 성남시 분당구 양현로 515 뽀뽀뽀유치원",
+      "mapx": "1271388537",
+      "mapy": "374149933"
+    },
+    "website": "https://blog.naver.com/pppkinder",
+    "draft_note": "Naver blog, not fetched."
+  },
+  {
+    "naver_id": "hash_zsjh7c",
+    "name_kr": "YBM어학원 강남센터",
+    "naver_link": "https://www.ybmedu.com/kangnam",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": "ybmgroup@ybm.co.kr",
+      "hook_fact": "Gangnam center occupies floors 5-9 of 강남대로 408 (역삼동)",
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [
+          "https://www.ybmedu.com/kangnam"
+        ],
+        "hook": [
+          "https://www.ybmedu.com/kangnam"
+        ]
+      }
+    },
+    "naver_raw": {
+      "title": "<b>YBM어학원 강남센터</b>",
+      "link": "https://www.ybmedu.com/kangnam",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 역삼동 820-8 5층~9층",
+      "roadAddress": "서울특별시 강남구 강남대로 408 5층~9층",
+      "mapx": "1270275554",
+      "mapy": "374992268"
+    },
+    "website": "https://www.ybmedu.com/kangnam",
+    "draft_note": "Page describes adult learners (TOEIC/TOEFL/IELTS) but no ages. Email is YBM's company-wide address, not necessarily this center's — decide if it counts."
+  },
+  {
+    "naver_id": "hash_4x6u62",
+    "name_kr": "햇빛유치원",
+    "naver_link": "http://www.hatvitkids.co.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>햇빛유치원</b>",
+      "link": "http://www.hatvitkids.co.kr/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 신천동 20-52 햇빛유치원",
+      "roadAddress": "서울특별시 송파구 올림픽로 419 햇빛유치원",
+      "mapx": "1271140624",
+      "mapy": "375204416"
+    },
+    "website": "http://www.hatvitkids.co.kr/",
+    "draft_note": "Site failed (certificate error). Nothing drafted."
+  },
+  {
+    "naver_id": "hash_kg2ntk",
+    "name_kr": "은정유치원",
+    "naver_link": "https://www.instagram.com/ejk_school/?igsh=cGk1dThrMTI3bGYw",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>은정유치원</b>",
+      "link": "https://www.instagram.com/ejk_school/?igsh=cGk1dThrMTI3bGYw",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 야탑동 335",
+      "roadAddress": "경기도 성남시 분당구 장미로 101",
+      "mapx": "1271312434",
+      "mapy": "374149795"
+    },
+    "website": "https://www.instagram.com/ejk_school/?igsh=cGk1dThrMTI3bGYw",
+    "draft_note": "Instagram, not fetched."
+  },
+  {
+    "naver_id": "hash_f78yrr",
+    "name_kr": "랜퍼스 키즈잉글리쉬 어학원 송파",
+    "naver_link": "https://www.lanpus.com/main/main.php",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>랜퍼스 키즈잉글리쉬 어학원 송파</b>",
+      "link": "https://www.lanpus.com/main/main.php",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 삼전동 9-1 선원빌딩",
+      "roadAddress": "서울특별시 송파구 백제고분로 209 선원빌딩",
+      "mapx": "1270900102",
+      "mapy": "375041041"
+    },
+    "website": "https://www.lanpus.com/main/main.php",
+    "draft_note": "Page mentions 6세/7세 'Emerging Class' only, not the whole age range. The email on the page (dybitcenter@gmail.com) is a data-breach contact and matches DYB's — I did not use it. Page also reports a Sept 2026 member-data breach; consider that before using it as a hook."
+  }
+]
