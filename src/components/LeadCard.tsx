@@ -50,8 +50,8 @@ export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail,
                 <select
                   value={lead.firebase_status}
                   onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
-                  disabled={needsVerification && lead.firebase_status === 'not_contacted'}
-                  title={needsVerification ? 'Verify the email address before marking this lead as contacted.' : undefined}
+                  disabled={lead.firebase_status === 'opted_out' || (needsVerification && lead.firebase_status === 'not_contacted')}
+                  title={lead.firebase_status === 'opted_out' ? 'This lead opted out — status is locked.' : needsVerification ? 'Verify the email address before marking this lead as contacted.' : undefined}
                   className="text-xs font-medium bg-black/20 text-zinc-200 border border-white/10 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="not_contacted">Not Contacted</option>

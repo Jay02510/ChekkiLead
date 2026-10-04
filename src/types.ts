@@ -42,6 +42,7 @@ export interface EnrichedLead {
   last_contacted_at?: string | null;
   saved_at?: string;
   sequence_step?: number;
+  deleted?: boolean;
 }
 
 export interface EmailDraft {

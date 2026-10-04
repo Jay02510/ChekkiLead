@@ -6,7 +6,7 @@ import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
@@ -230,6 +230,10 @@ export default function App() {
   };
 
   const handleGenerateEmail = async (lead: EnrichedLead) => {
+    if (lead.firebase_status === 'opted_out') {
+      toast.error('This lead opted out — email generation is blocked.');
+      return;
+    }
     setGeneratingEmails(prev => ({ ...prev, [lead.naver_id]: true }));
     try {
       const draft = await generateEmailDraft(lead);
@@ -254,6 +258,11 @@ export default function App() {
   };
 
   const handleStatusChange = async (naver_id: string, status: FirebaseStatus) => {
+    const current = savedLeads.find(l => l.naver_id === naver_id);
+    if (current?.firebase_status === 'opted_out') {
+      toast.error('This lead opted out — status is locked.');
+      return;
+    }
     try {
       const updates: Record<string, any> = { firebase_status: status };
       if (status === 'sent') {
@@ -286,11 +295,14 @@ export default function App() {
   };
 
   const handleDeleteLead = async (naver_id: string) => {
-    if (!window.confirm('Delete this lead permanently? This cannot be undone.')) return;
+    // Soft delete only — a hard delete removes the doc from the dedupe set,
+    // so the next cron sweep or Bulk Sweep could re-add and re-contact an
+    // academy that was deliberately removed (including an opted-out one).
+    if (!window.confirm('Remove this lead from your list? It stays recorded so it won\'t be re-added by a future sweep.')) return;
     try {
       await authReady;
-      await deleteDoc(doc(db, LEADS_COLLECTION, naver_id));
-      toast.success('Lead deleted');
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), { deleted: true });
+      toast.success('Lead removed');
       setSelectedIds(prev => {
         const next = new Set(prev);
         next.delete(naver_id);
@@ -304,6 +316,8 @@ export default function App() {
   };
 
   const toggleSelect = (naver_id: string) => {
+    const lead = savedLeads.find(l => l.naver_id === naver_id);
+    if (lead?.firebase_status === 'opted_out') return;
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(naver_id)) next.delete(naver_id);
@@ -326,11 +340,11 @@ export default function App() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} permanently? This cannot be undone.`)) return;
+    if (!window.confirm(`Remove ${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} from your list? They stay recorded so they won't be re-added by a future sweep.`)) return;
     try {
       await authReady;
-      await Promise.all([...selectedIds].map(naver_id => deleteDoc(doc(db, LEADS_COLLECTION, naver_id))));
-      toast.success(`${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} deleted`);
+      await Promise.all([...selectedIds].map(naver_id => updateDoc(doc(db, LEADS_COLLECTION, naver_id), { deleted: true })));
+      toast.success(`${selectedIds.size} lead${selectedIds.size > 1 ? 's' : ''} removed`);
       setSelectedIds(new Set());
       fetchSavedLeads();
     } catch (err) {
@@ -374,7 +388,10 @@ export default function App() {
     toast.success('Database exported to CSV');
   };
 
-  const filteredLeads = [...(dbFilter === 'all' ? savedLeads : savedLeads.filter(l => l.firebase_status === dbFilter))].sort((a, b) => {
+  // savedLeads itself keeps soft-deleted leads (needed for dedupe — see
+  // handleBulkSweep's `seen` set); only the list view hides them.
+  const visibleLeads = savedLeads.filter(l => !l.deleted);
+  const filteredLeads = [...(dbFilter === 'all' ? visibleLeads : visibleLeads.filter(l => l.firebase_status === dbFilter))].sort((a, b) => {
     if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
     if (dbSort === 'date') return (b.saved_at || '').localeCompare(a.saved_at || '');
     return b.outreach_priority - a.outreach_priority;
@@ -382,8 +399,16 @@ export default function App() {
 
   // Shared between the Search tab's temporary results and the Database
   // tab's saved leads — drafting an email shouldn't require re-searching.
-  const renderEmailDraftSection = (lead: EnrichedLead) =>
-    !emailDrafts[lead.naver_id] ? (
+  const renderEmailDraftSection = (lead: EnrichedLead) => {
+    const optedOut = lead.firebase_status === 'opted_out';
+    if (optedOut && !emailDrafts[lead.naver_id]) {
+      return (
+        <div className="w-full py-3 px-4 bg-white/[0.02] border border-white/10 text-zinc-500 text-sm rounded-xl text-center">
+          This lead opted out — email generation is blocked.
+        </div>
+      );
+    }
+    return !emailDrafts[lead.naver_id] ? (
       <button
         onClick={() => handleGenerateEmail(lead)}
         disabled={generatingEmails[lead.naver_id]}
@@ -399,10 +424,11 @@ export default function App() {
       <EmailDraftCard
         draft={emailDrafts[lead.naver_id]}
         leadEmail={lead.email}
-        onRegenerate={() => handleGenerateEmail(lead)}
+        onRegenerate={optedOut ? undefined : () => handleGenerateEmail(lead)}
         isGenerating={generatingEmails[lead.naver_id]}
       />
     );
+  };
 
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-zinc-100">
@@ -729,7 +755,9 @@ export default function App() {
                         type="checkbox"
                         checked={selectedIds.has(lead.naver_id)}
                         onChange={() => toggleSelect(lead.naver_id)}
-                        className="mt-8 w-4 h-4 rounded border-white/20 bg-black/20 accent-orange-500 cursor-pointer shrink-0"
+                        disabled={lead.firebase_status === 'opted_out'}
+                        title={lead.firebase_status === 'opted_out' ? 'Opted-out leads are locked out of bulk actions' : undefined}
+                        className="mt-8 w-4 h-4 rounded border-white/20 bg-black/20 accent-orange-500 cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                         aria-label={`Select ${lead.institution_name_en}`}
                       />
                       <div className="flex-1">
