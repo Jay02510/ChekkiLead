@@ -35,3 +35,17 @@ Every saved lead mixes real data from Naver with fields Gemini estimates. Before
 - **Model estimates (Gemini, not verified against any external source):** `institution_type`, `student_age_range`, `approx_students`, `cefr_levels_taught`, `outreach_priority`, `fit_reason`, `agent_notes`, `personalization_hook`, and `email` whenever `email_confidence` isn't `scraped`.
 - **Email specifically:** `email_confidence` tells you how much to trust `email`. `scraped` means it was found on the academy's site. `estimated` means Gemini constructed a plausible address from a domain or naming pattern — **verify it manually (e.g. on the academy's own site) before sending**, and mark it verified via the lead card so it isn't blocked from bulk sending. `unknown` means don't send to it at all; the app blocks `unknown`-confidence and unverified `estimated` addresses from both the single-lead and bulk "Mark Sent" actions.
 
+
+## Eval
+
+`npm run eval` scores the current enrichment pipeline against `eval/gold.json`, a set of leads whose true facts were checked by hand. Only entries with `checked: true` are scored. Each result file in `eval/results/` records the commit it ran on.
+
+Gold fields have three states:
+
+- `null`: not checked yet. The eval skips it.
+- a value: the true answer, with the source URLs that prove it in `sources`.
+- `"not_found"`: you looked and nothing is published. Allowed for `age_min`/`age_max` (both together), `cefr_levels`, `email` and `hook_fact`. The eval then reports **claims where nothing findable**: the share of `not_found` fields where the pipeline still returned a value (for email, an estimated address counts as a claim). That is the "invents facts" failure; lower is better.
+
+**email_rule:** a gold `email` must be specific to that branch or academy, and published by it. A company-wide address such as `ybmgroup@ybm.co.kr` doesn't count. If only a company-wide address exists, mark `email` as `"not_found"`.
+
+Gold answers are never drafted by a model. Grading the pipeline against another model's reading of the same pages would measure agreement, not truth.

@@ -1,4 +1,26 @@
 // Pure scoring helpers for eval/run.ts.
+import type { EnrichedLead } from "../src/types";
+
+// A gold field is null until the human has looked. "not_found" means they
+// looked and nothing is published — a pipeline that still returns a value
+// there is inventing it.
+export const NOT_FOUND = "not_found" as const;
+export const isNotFound = (v: unknown): v is typeof NOT_FOUND => v === NOT_FOUND;
+
+export type ClaimField = "age" | "levels" | "email" | "hook";
+
+// Did the pipeline output assert a value for this field? A failed
+// enrichment (out === null) asserts nothing. An estimated email is a
+// claim — it presents a guessed address as the lead's contact.
+export function claimsValue(field: ClaimField, out: EnrichedLead | null): boolean {
+  if (!out) return false;
+  switch (field) {
+    case "age": return parseAgeRange(out.student_age_range) !== null;
+    case "levels": return (out.cefr_levels_taught?.length ?? 0) > 0;
+    case "email": return !!out.email?.trim() && out.email_confidence !== "unknown";
+    case "hook": return !!out.personalization_hook?.trim();
+  }
+}
 
 // "5–12 years" -> [5, 12]; "7 years" -> [7, 7]; nothing parseable -> null.
 export function parseAgeRange(s: string | undefined): [number, number] | null {

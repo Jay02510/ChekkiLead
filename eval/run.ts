@@ -12,18 +12,19 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { enrichLeadServer } from "../src/lib/serverActions";
 import type { EnrichedLead, NaverSearchResult } from "../src/types";
-import { parseAgeRange, ageIoU, jaccard, sameEmail } from "./score";
+import { parseAgeRange, ageIoU, jaccard, sameEmail, isNotFound, claimsValue, ClaimField } from "./score";
 
 interface GoldEntry {
   naver_id: string;
   name_kr: string;
   checked: boolean;
+  // null = not checked yet; "not_found" = checked, nothing published.
   gold: {
-    age_min: number | null;
-    age_max: number | null;
-    cefr_levels: string[] | null;
-    email: string | null;
-    hook_fact: string | null;
+    age_min: number | "not_found" | null;
+    age_max: number | "not_found" | null;
+    cefr_levels: string[] | "not_found" | null;
+    email: string | "not_found" | null;
+    hook_fact: string | "not_found" | null;
   };
   naver_raw: NaverSearchResult;
 }
@@ -62,6 +63,11 @@ const pct = (x: number) => (Number.isNaN(x) ? "n/a" : `${(x * 100).toFixed(1)}%`
 async function main() {
   const entries: GoldEntry[] = JSON.parse(readFileSync("eval/gold.json", "utf8"));
   const checked = entries.filter(e => e.checked);
+  for (const e of checked) {
+    if (isNotFound(e.gold.age_min) !== isNotFound(e.gold.age_max)) {
+      throw new Error(`${e.name_kr}: age_min and age_max must both be "not_found" or both numbers.`);
+    }
+  }
   if (checked.length === 0) throw new Error("No entries in eval/gold.json have checked: true yet.");
   if (checked.length < entries.length) console.warn(`Scoring ${checked.length}/${entries.length} — the rest aren't checked yet.`);
 
@@ -74,6 +80,16 @@ async function main() {
   const emailHits: number[] = [];
   const hookVerdicts: HookVerdict[] = [];
   let falseScraped = 0;
+  // Fields the human marked not_found, and how many the pipeline still filled.
+  const notFound: Record<ClaimField, { total: number; claimed: number }> = {
+    age: { total: 0, claimed: 0 }, levels: { total: 0, claimed: 0 }, email: { total: 0, claimed: 0 }, hook: { total: 0, claimed: 0 },
+  };
+  const checkNotFound = (field: ClaimField, out: EnrichedLead | null, row: Record<string, unknown>, predicted: unknown) => {
+    const claimed = claimsValue(field, out);
+    notFound[field].total++;
+    if (claimed) notFound[field].claimed++;
+    row[`${field}_not_found`] = { predicted, claimed };
+  };
   let failed = 0;
   const perLead: unknown[] = [];
 
@@ -92,25 +108,33 @@ async function main() {
     // honest number, not one that quietly skips the hard cases.
     const row: Record<string, unknown> = { naver_id: entry.naver_id, name_kr: entry.name_kr, error };
 
-    if (gold.age_min != null && gold.age_max != null) {
+    if (isNotFound(gold.age_min) || isNotFound(gold.age_max)) {
+      checkNotFound("age", out, row, out?.student_age_range);
+    } else if (gold.age_min != null && gold.age_max != null) {
       const s = out ? ageIoU(parseAgeRange(out.student_age_range), [gold.age_min, gold.age_max]) : 0;
       ageScores.push(s);
       row.age = { predicted: out?.student_age_range, gold: [gold.age_min, gold.age_max], score: s };
     }
-    if (gold.cefr_levels) {
+    if (isNotFound(gold.cefr_levels)) {
+      checkNotFound("levels", out, row, out?.cefr_levels_taught);
+    } else if (gold.cefr_levels) {
       const s = out ? jaccard(out.cefr_levels_taught, gold.cefr_levels) : 0;
       levelScores.push(s);
       row.levels = { predicted: out?.cefr_levels_taught, gold: gold.cefr_levels, score: s };
     }
-    if (gold.email) {
+    if (isNotFound(gold.email)) {
+      checkNotFound("email", out, row, out?.email && `${out.email} (${out.email_confidence})`);
+    } else if (gold.email) {
       const hit = out ? Number(sameEmail(out.email, gold.email)) : 0;
       emailHits.push(hit);
       row.email = { predicted: out?.email, confidence: out?.email_confidence, gold: gold.email, hit };
     }
-    if (out?.email_confidence === "scraped" && !(gold.email && sameEmail(out.email, gold.email))) {
+    if (out?.email_confidence === "scraped" && !(gold.email && !isNotFound(gold.email) && sameEmail(out.email, gold.email))) {
       falseScraped++;
     }
-    if (gold.hook_fact) {
+    if (isNotFound(gold.hook_fact)) {
+      checkNotFound("hook", out, row, out?.personalization_hook);
+    } else if (gold.hook_fact) {
       const verdict: HookVerdict = out?.personalization_hook ? await judgeHook(judge, out.personalization_hook, gold.hook_fact) : "generic";
       hookVerdicts.push(verdict);
       row.hook = { predicted: out?.personalization_hook, gold: gold.hook_fact, verdict };
@@ -121,6 +145,8 @@ async function main() {
     await new Promise(r => setTimeout(r, 400));
   }
 
+  const nfTotal = Object.values(notFound).reduce((a, b) => a + b.total, 0);
+  const nfClaimed = Object.values(notFound).reduce((a, b) => a + b.claimed, 0);
   const count = (v: HookVerdict) => hookVerdicts.filter(x => x === v).length;
   const summary = {
     leads_scored: checked.length,
@@ -129,6 +155,10 @@ async function main() {
     cefr_levels_jaccard: mean(levelScores),
     email_exact_match: mean(emailHits),
     email_false_scraped: falseScraped,
+    // Of the fields where the human found nothing published, the share the
+    // pipeline still filled in — invented facts. Lower is better.
+    not_found_claim_rate: nfTotal ? nfClaimed / nfTotal : NaN,
+    not_found_claims: { total: nfTotal, claimed: nfClaimed, by_field: notFound },
     hook_supported: hookVerdicts.length ? count("supported") / hookVerdicts.length : NaN,
     hook_verdicts: {
       supported: count("supported"),
@@ -151,6 +181,7 @@ Pipeline @ ${sha}${dirty} — ${checked.length} leads, ${failed} failed
   CEFR levels (Jaccard)   ${pct(summary.cefr_levels_jaccard)}  (n=${levelScores.length})
   Email exact match       ${pct(summary.email_exact_match)}  (n=${emailHits.length}, leads with a real email)
   "scraped" but wrong     ${falseScraped}
+  Claims where nothing findable ${pct(summary.not_found_claim_rate)}  (${nfClaimed}/${nfTotal} not_found fields still filled; lower is better)
   Hook supported          ${pct(summary.hook_supported)}  (${JSON.stringify(summary.hook_verdicts)})
 Full results: ${outPath}`);
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseAgeRange, ageIoU, jaccard, sameEmail } from './score';
+import { parseAgeRange, ageIoU, jaccard, sameEmail, isNotFound, claimsValue } from './score';
+import type { EnrichedLead } from '../src/types';
 
 describe('parseAgeRange', () => {
   it('parses en-dash ranges', () => expect(parseAgeRange('5–12 years')).toEqual([5, 12]));
@@ -24,4 +25,29 @@ describe('jaccard', () => {
 describe('sameEmail', () => {
   it('ignores case and whitespace', () => expect(sameEmail(' Info@Academy.kr ', 'info@academy.kr')).toBe(true));
   it('rejects a different address', () => expect(sameEmail('a@x.kr', 'b@x.kr')).toBe(false));
+});
+
+const lead = (over: Partial<EnrichedLead>) => ({
+  student_age_range: 'Not specified', cefr_levels_taught: [], email: '', email_confidence: 'unknown', personalization_hook: '', ...over,
+}) as EnrichedLead;
+
+describe('not_found sentinel', () => {
+  it('recognises only the exact sentinel', () => {
+    expect(isNotFound('not_found')).toBe(true);
+    expect(isNotFound(null)).toBe(false);
+    expect(isNotFound('')).toBe(false);
+  });
+  it('a failed enrichment claims nothing', () => {
+    for (const f of ['age', 'levels', 'email', 'hook'] as const) expect(claimsValue(f, null)).toBe(false);
+  });
+  it('an empty output claims nothing', () => {
+    for (const f of ['age', 'levels', 'email', 'hook'] as const) expect(claimsValue(f, lead({}))).toBe(false);
+  });
+  it('an age range with numbers is a claim', () => expect(claimsValue('age', lead({ student_age_range: '5–12 years' }))).toBe(true));
+  it('listed CEFR levels are a claim', () => expect(claimsValue('levels', lead({ cefr_levels_taught: ['A1'] }))).toBe(true));
+  it('an estimated email is a claim', () =>
+    expect(claimsValue('email', lead({ email: 'info@x.kr', email_confidence: 'estimated' }))).toBe(true));
+  it('an unknown-confidence email is not a claim', () =>
+    expect(claimsValue('email', lead({ email: 'info@x.kr', email_confidence: 'unknown' }))).toBe(false));
+  it('a non-empty hook is a claim', () => expect(claimsValue('hook', lead({ personalization_hook: 'Founded in 2009' }))).toBe(true));
 });
