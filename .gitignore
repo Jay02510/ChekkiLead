@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Frozen eval sources: third-party blog text, not for this public repo
+eval/sources/
