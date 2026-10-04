@@ -193,6 +193,11 @@ describe('fetchPage', () => {
     const out = await fetchPage('https://academy.kr/', mockFetch({ academy: html(big) }));
     expect(out.text.length).toBeLessThan(400 * 1024);
   });
+  it('truncates very long text so a source fits in one Firestore document', async () => {
+    const long = `<html><body><p>${'가나다라. '.repeat(40_000)}</p></body></html>`;
+    const out = await fetchPage('https://academy.kr/', mockFetch({ academy: html(long) }));
+    expect(out.text.length).toBeLessThanOrEqual(100_000);
+  });
   it('decodes EUC-KR pages from the content-type charset', async () => {
     const bytes = new Uint8Array([0xc7, 0xd0, 0xbf, 0xf8]); // 학원 in EUC-KR
     const body = Buffer.concat([Buffer.from('<html><body><p>'), Buffer.from(bytes), Buffer.from(` ${'x'.repeat(60)}</p></body></html>`)]);
@@ -252,6 +257,24 @@ describe('collectForLead', () => {
     expect(out.counts).toEqual({ blog_own: 1, blog_third_party: 1, website: 0, errors: 1 });
     expect(out.sources.find(s => s.status === 'error')!.error).toBe('unsupported_host:instagram.com');
     expect(out.candidate_emails).toEqual([{ email: 'dybitcenter@gmail.com', sourceId: sourceIdFor(normalizeUrl('https://blog.naver.com/dybchoisun')) }]);
+  });
+  it('marks snippets as via search and fetched pages as via page', async () => {
+    const own = `<html><body><p>${'DYB최선어학원 분당 직영은 초등 영어 전문입니다. '.repeat(3)}</p></body></html>`;
+    const out = await collectForLead(lead(), { fetchImpl: mockFetch({ 'openapi.naver.com': blogResponse, 'm.blog.naver.com/dybchoisun': html(own) }), sleep: async () => {} });
+    expect(out.sources.filter(s => s.via === 'search')).toHaveLength(1);
+    expect(out.sources.filter(s => s.via === 'page')).toHaveLength(1);
+  });
+  it('fetches a URL once when the listing link and saved website are the same page', async () => {
+    let fetches = 0;
+    const own = `<html><body><p>${'초등 영어 전문 학원 소개 문장입니다. '.repeat(4)}</p></body></html>`;
+    const f = (async (u: any) => {
+      if (String(u).includes('openapi.naver.com')) return new Response(JSON.stringify({ items: [] }));
+      fetches++;
+      return html(own)();
+    }) as FetchLike;
+    const sameLink = 'https://academy.kr/';
+    await collectForLead(lead({ website: sameLink, naver_raw: { ...lead().naver_raw!, link: sameLink } }), { fetchImpl: f, sleep: async () => {} });
+    expect(fetches).toBe(1);
   });
   it('records a blog-search failure instead of dropping it', async () => {
     const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: mockFetch({ 'openapi.naver.com': html('', 429) }), sleep: async () => {} });
