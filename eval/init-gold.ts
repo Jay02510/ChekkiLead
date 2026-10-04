@@ -15,6 +15,8 @@ import type { EnrichedLead } from "../src/types";
 
 const GOLD_PATH = "eval/gold.json";
 const SAMPLE_SIZE = 30;
+// Not schools: dog daycares, cafés, test centers. Kindergartens stay — they're a target type.
+const NOT_A_SCHOOL = /애견|강아지|카페|CBT|시험센터/;
 
 async function main() {
   if (existsSync(GOLD_PATH)) {
@@ -23,7 +25,7 @@ async function main() {
   }
 
   const snap = await adminDb().collection("leads").get();
-  const pool = snap.docs.map(d => d.data() as EnrichedLead).filter(l => l.naver_raw && !l.deleted);
+  const pool = snap.docs.map(d => d.data() as EnrichedLead).filter(l => l.naver_raw && !l.deleted && !NOT_A_SCHOOL.test(l.institution_name_kr));
   if (pool.length < SAMPLE_SIZE) {
     console.warn(`Only ${pool.length} leads have naver_raw — run scripts/backfill-naver-raw.ts --write first.`);
   }
