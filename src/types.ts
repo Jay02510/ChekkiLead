@@ -43,6 +43,7 @@ export interface EnrichedLead {
   saved_at?: string;
   sequence_step?: number;
   deleted?: boolean;
+  naver_raw?: NaverSearchResult;
 }
 
 export interface EmailDraft {

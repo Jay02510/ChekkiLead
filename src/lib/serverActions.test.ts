@@ -93,4 +93,8 @@ describe('applyNaverTruth', () => {
   it('always resets firebase_status to not_contacted', () => {
     expect(corrected.firebase_status).toBe('not_contacted');
   });
+
+  it('keeps the raw Naver item so the lead can be re-enriched later', () => {
+    expect(corrected.naver_raw).toEqual(naverItem);
+  });
 });

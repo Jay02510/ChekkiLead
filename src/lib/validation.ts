@@ -10,6 +10,18 @@ const emailConfidence = z.enum(["scraped", "estimated", "unknown"]);
 const cefrLevel = z.enum(["Pre-A1", "A1", "A2", "B1", "B2", "C1"]);
 const firebaseStatus = z.enum(["pending", "sent", "replied", "bounced", "not_contacted", "opted_out"]);
 
+export const NaverItemSchema = z.object({
+  title: z.string(),
+  link: z.string(),
+  category: z.string(),
+  description: z.string(),
+  telephone: z.string(),
+  address: z.string(),
+  roadAddress: z.string(),
+  mapx: z.string(),
+  mapy: z.string(),
+});
+
 export const EnrichedLeadSchema = z.object({
   institution_name_en: z.string().min(1),
   institution_name_kr: z.string().min(1),
@@ -37,6 +49,7 @@ export const EnrichedLeadSchema = z.object({
   saved_at: z.string().optional(),
   sequence_step: z.number().optional(),
   deleted: z.boolean().optional(),
+  naver_raw: NaverItemSchema.optional(),
 });
 
 export const EmailDraftSchema = z.object({

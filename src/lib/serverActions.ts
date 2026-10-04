@@ -66,6 +66,8 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
     phone: item.telephone,
     address_full: item.roadAddress || item.address,
     firebase_status: 'not_contacted',
+    // Kept so any lead can be re-run through a future pipeline version.
+    naver_raw: item,
   };
 }
 
