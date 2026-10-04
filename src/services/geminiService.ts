@@ -1,4 +1,4 @@
-import { EnrichedLead, EmailDraft } from "../types";
+import { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
 // This used to call the Gemini SDK directly from the browser with
 // process.env.GEMINI_API_KEY baked in via vite.config.ts `define` — which
@@ -20,8 +20,8 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-export async function enrichLead(rawData: string): Promise<EnrichedLead> {
-  return postJson<EnrichedLead>("/api/enrich-lead", { rawData });
+export async function enrichLead(item: NaverSearchResult): Promise<EnrichedLead> {
+  return postJson<EnrichedLead>("/api/enrich-lead", { item });
 }
 
 export async function generateEmailDraft(lead: EnrichedLead): Promise<EmailDraft> {

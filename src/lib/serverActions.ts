@@ -4,7 +4,8 @@
 // from client code (src/App.tsx etc), so Vite won't bundle this into the browser.
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA } from "./geminiPrompts.js";
-import type { EnrichedLead, EmailDraft } from "../types";
+import { getNaverId } from "./naverId.js";
+import type { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
 function genaiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -53,13 +54,28 @@ export async function searchNaver(query: string, start: number | string) {
   return response.json();
 }
 
-export async function enrichLeadServer(rawData: string): Promise<EnrichedLead> {
-  if (!rawData) throw Object.assign(new Error("rawData is required."), { status: 400 });
+// Never trust the model for fields the code already knows from the raw
+// Naver result — if the model alters naver_id, dedupe breaks (an
+// opted-out academy could be re-added and re-contacted); drifted
+// phone/address would silently corrupt data the model didn't actually derive.
+export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): EnrichedLead {
+  return {
+    ...parsed,
+    naver_id: getNaverId(item),
+    phone: item.telephone,
+    address_full: item.roadAddress || item.address,
+    firebase_status: 'not_contacted',
+  };
+}
 
+export async function enrichLeadServer(item: NaverSearchResult): Promise<EnrichedLead> {
+  if (!item) throw Object.assign(new Error("item is required."), { status: 400 });
+
+  const naverId = getNaverId(item);
   const ai = genaiClient();
   const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-3.6-flash",
-    contents: rawData,
+    contents: JSON.stringify({ ...item, naver_id: naverId }),
     config: {
       systemInstruction: SYSTEM_PROMPT,
       responseMimeType: "application/json",
@@ -69,7 +85,7 @@ export async function enrichLeadServer(rawData: string): Promise<EnrichedLead> {
 
   const text = response.text;
   if (!text) throw Object.assign(new Error("No response from Gemini."), { status: 502 });
-  return JSON.parse(text);
+  return applyNaverTruth(item, JSON.parse(text) as EnrichedLead);
 }
 
 // Korea's 정보통신망법 (Act on Promotion of Information and Communications

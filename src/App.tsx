@@ -109,16 +109,14 @@ export default function App() {
   const savedIds = useMemo(() => new Set(savedLeads.map(l => l.naver_id)), [savedLeads]);
 
   const handleSelectResult = (result: NaverSearchResult) => {
-    const withId = { ...result, naver_id: getNaverId(result) };
-    handleEnrichWithData(JSON.stringify(withId, null, 2));
+    handleEnrichWithData(result);
   };
 
-  const handleEnrichWithData = async (dataToEnrich: string) => {
-    if (!dataToEnrich.trim()) return;
+  const handleEnrichWithData = async (item: NaverSearchResult) => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await enrichLead(dataToEnrich);
+      const result = await enrichLead(item);
       setEnrichedLeads([result]); // Replace current view with single result
     } catch (err: any) {
       setError(err.message || 'An error occurred while enriching the lead.');
@@ -147,8 +145,7 @@ export default function App() {
     const results: EnrichedLead[] = [];
     for (const item of toProcess) {
       try {
-        const withId = { ...item, naver_id: getNaverId(item) };
-        const result = await enrichLead(JSON.stringify(withId));
+        const result = await enrichLead(item);
         results.push(result);
         setEnrichedLeads([...results]); // Update UI progressively
       } catch (err: any) {
@@ -210,8 +207,7 @@ export default function App() {
           }
           seen.add(naverId);
           try {
-            const withId = { ...item, naver_id: naverId };
-            const enriched = await enrichLead(JSON.stringify(withId));
+            const enriched = await enrichLead(item);
             await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), { ...enriched, saved_at: new Date().toISOString() });
             setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
             setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
