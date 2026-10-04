@@ -45,6 +45,10 @@ export interface EnrichedLead {
   deleted?: boolean;
   naver_raw?: NaverSearchResult;
   non_target?: boolean;
+  // Phase 1 source collection (written server-side by scripts/collect-sources.ts).
+  sources_collected_at?: string;
+  source_counts?: { blog_own: number; blog_third_party: number; website: number; errors: number };
+  candidate_emails?: { email: string; sourceId: string }[];
 }
 
 export interface EmailDraft {

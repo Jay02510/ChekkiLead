@@ -42,6 +42,8 @@ export type CollectLead = Pick<EnrichedLead, "institution_name_kr" | "district" 
 
 const MAX_PAGE_BYTES = 500 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
+// Keeps a source plus its chunks under Firestore's 1 MiB document limit (Korean is 3 bytes/char).
+const MAX_TEXT_CHARS = 100_000;
 const USER_AGENT = "ChekkiLeadBot/1.0 (+https://chekki-lead.vercel.app; academy research for outreach)";
 
 export const sourceIdFor = (url: string) => createHash("sha1").update(url).digest("hex").slice(0, 10);
@@ -260,7 +262,7 @@ export async function fetchPage(url: string, fetchImpl: FetchLike = fetch): Prom
     .join(" ");
   const title = root.querySelector("title")?.text.trim() || "";
   root.querySelectorAll("script, style, nav, noscript").forEach(n => n.remove());
-  const text = root.text.replace(/\s+/g, " ").trim();
+  const text = root.text.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
   if (text.length < 50) throw new Error("empty_page");
 
   return { text, title, emails: extractEmails(`${text} ${mailtos}`) };

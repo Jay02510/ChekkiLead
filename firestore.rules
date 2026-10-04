@@ -16,6 +16,13 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    // Collected public text about each lead, written only by the Admin SDK
+    // (scripts/collect-sources.ts). The owner can read it; no client writes.
+    match /leads/{leadId}/sources/{sourceId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
     match /leads_dev/{leadId} {
       allow read, write: if isOwner();
     }
