@@ -1,5 +1,4 @@
-// Smoke test — run with: npx tsx src/lib/naverId.test.ts
-import assert from 'node:assert';
+import { describe, it, expect } from 'vitest';
 import { getNaverId, stripHtml } from './naverId';
 import { NaverSearchResult } from '../types';
 
@@ -10,27 +9,30 @@ function result(overrides: Partial<NaverSearchResult>): NaverSearchResult {
   };
 }
 
-// place ID takes priority over everything else
-assert.strictEqual(
-  getNaverId(result({ link: 'https://m.place.naver.com/place/123456/home' })),
-  'place_123456'
-);
+describe('getNaverId', () => {
+  it('prefers the Naver place ID over everything else', () => {
+    expect(getNaverId(result({ link: 'https://m.place.naver.com/place/123456/home' }))).toBe('place_123456');
+  });
 
-// phone is used when no place link
-assert.strictEqual(
-  getNaverId(result({ telephone: '02-1234-5678' })),
-  'phone_0212345678'
-);
+  it('falls back to phone when there is no place link', () => {
+    expect(getNaverId(result({ telephone: '02-1234-5678' }))).toBe('phone_0212345678');
+  });
 
-// same business, address differs only by floor suffix across two queries -> same hash
-const a = getNaverId(result({ title: '<b>애플</b>영어학원', roadAddress: '서울특별시 강남구 테헤란로 1 3층' }));
-const b = getNaverId(result({ title: '애플영어학원', roadAddress: '서울특별시 강남구 테헤란로 1' }));
-assert.strictEqual(a, b, 'floor-suffix variance should not fork the dedupe key');
+  it('is stable across queries where only a floor suffix differs', () => {
+    const a = getNaverId(result({ title: '<b>애플</b>영어학원', roadAddress: '서울특별시 강남구 테헤란로 1 3층' }));
+    const b = getNaverId(result({ title: '애플영어학원', roadAddress: '서울특별시 강남구 테헤란로 1' }));
+    expect(a).toBe(b);
+  });
 
-// different address -> different hash
-const c = getNaverId(result({ title: '애플영어학원', roadAddress: '서울특별시 서초구 다른로 9' }));
-assert.notStrictEqual(a, c);
+  it('differs for a genuinely different address', () => {
+    const a = getNaverId(result({ title: '애플영어학원', roadAddress: '서울특별시 강남구 테헤란로 1' }));
+    const c = getNaverId(result({ title: '애플영어학원', roadAddress: '서울특별시 서초구 다른로 9' }));
+    expect(a).not.toBe(c);
+  });
+});
 
-assert.strictEqual(stripHtml('<b>애플</b>영어학원'), '애플영어학원');
-
-console.log('naverId.test.ts OK');
+describe('stripHtml', () => {
+  it('removes HTML tags from Naver titles', () => {
+    expect(stripHtml('<b>애플</b>영어학원')).toBe('애플영어학원');
+  });
+});
