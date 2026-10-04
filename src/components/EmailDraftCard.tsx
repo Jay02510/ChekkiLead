@@ -9,6 +9,19 @@ interface EmailDraftCardProps {
   isGenerating?: boolean;
 }
 
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50';
+
+function CopyButton({ text, id, copied, onCopy }: { text: string; id: string; copied: string | null; onCopy: (text: string, id: string) => void }) {
+  return (
+    <button
+      onClick={() => onCopy(text, id)}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium text-orange-300 hover:text-orange-200 transition-colors rounded ${focusRing}`}
+    >
+      {copied === id ? <><Check className="w-3.5 h-3.5" aria-hidden /> Copied</> : <><Copy className="w-3.5 h-3.5" aria-hidden /> Copy</>}
+    </button>
+  );
+}
+
 export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }: EmailDraftCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [subjectVariant, setSubjectVariant] = useState<'a' | 'b'>('a');
@@ -28,150 +41,82 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
   };
 
   return (
-    <div className="rounded-[2rem] border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.35)] mt-6">
-    <div className="bg-brand-card rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] overflow-hidden">
-      <div className="p-6 border-b border-white/10 flex items-center justify-between">
+    <section className="rounded-2xl border border-white/10 bg-brand-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0">
-            <Mail className="w-5 h-5 text-orange-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-zinc-100 font-display">Cold Outreach Email</h3>
-            <p className="text-sm text-zinc-500">Personalised bilingual draft ready to send.</p>
-          </div>
+          <Mail className="w-5 h-5 text-orange-300" aria-hidden />
+          <h3 className="text-lg font-semibold text-zinc-100 font-display">Outreach email</h3>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenGmail}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-black bg-brand-orange hover:bg-orange-400 rounded-full transition-colors active:scale-[0.97] shadow-lg shadow-orange-500/25"
-          >
-            <Send className="w-4 h-4" />
-            Open in Gmail
-          </button>
           {onRegenerate && (
             <button
               onClick={onRegenerate}
               disabled={isGenerating}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50 ${focusRing}`}
             >
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <RefreshCw className="w-4 h-4" aria-hidden />}
               Regenerate
             </button>
           )}
+          <button
+            onClick={handleOpenGmail}
+            className={`inline-flex items-center gap-2 px-4 py-1.5 text-sm font-semibold text-black bg-brand-orange hover:bg-orange-400 rounded-full transition-colors active:scale-[0.97] ${focusRing}`}
+          >
+            <Send className="w-4 h-4" aria-hidden />
+            Open in Gmail
+          </button>
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        {/* Subject */}
+      <div className="p-5 sm:p-6 space-y-5">
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Subject Line</h4>
-              <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-full p-0.5">
+              <h4 className="text-sm font-semibold text-zinc-100">Subject</h4>
+              <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-full p-0.5" role="group" aria-label="Subject variant">
                 {(['a', 'b'] as const).map(v => (
                   <button
                     key={v}
                     onClick={() => setSubjectVariant(v)}
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase transition-colors ${subjectVariant === v ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    aria-pressed={subjectVariant === v}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase transition-colors ${focusRing} ${subjectVariant === v ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-400 hover:text-zinc-200'}`}
                   >
                     {v}
                   </button>
                 ))}
               </div>
             </div>
-            <button
-              onClick={() => handleCopy(activeSubject, 'subject')}
-              className="flex items-center gap-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors"
-            >
-              {copiedSection === 'subject' ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy
-                </>
-              )}
-            </button>
+            <CopyButton text={activeSubject} id="subject" copied={copiedSection} onCopy={handleCopy} />
           </div>
-          <div className="p-3 bg-black/20 rounded-lg border border-white/10 text-sm text-zinc-100 font-medium break-keep">
-            {activeSubject}
-          </div>
+          <div className="p-3 bg-black/30 rounded-lg border border-white/10 text-sm text-zinc-100 font-medium break-keep">{activeSubject}</div>
         </div>
 
-        {/* Korean Body */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Korean Body</h4>
-              {draft.word_count_kr && (
-                <span className="text-xs text-zinc-500">({draft.word_count_kr} words)</span>
-              )}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-zinc-100">
+                Korean {draft.word_count_kr ? <span className="font-normal text-zinc-400">· {draft.word_count_kr} words</span> : null}
+              </h4>
+              <CopyButton text={draft.body_korean} id="korean" copied={copiedSection} onCopy={handleCopy} />
             </div>
-            <button
-              onClick={() => handleCopy(draft.body_korean, 'korean')}
-              className="flex items-center gap-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors"
-            >
-              {copiedSection === 'korean' ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy
-                </>
-              )}
-            </button>
+            <div className="p-4 bg-black/30 rounded-lg border border-white/10 text-sm text-zinc-200 font-korean whitespace-pre-wrap leading-relaxed break-keep">{draft.body_korean}</div>
           </div>
-          <div className="p-4 bg-black/20 rounded-lg border border-white/10 text-sm text-zinc-300 font-korean whitespace-pre-wrap leading-relaxed break-keep">
-            {draft.body_korean}
-          </div>
-        </div>
-
-        {/* English Body */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">English Body</h4>
-              {draft.word_count_en && (
-                <span className="text-xs text-zinc-500">({draft.word_count_en} words)</span>
-              )}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-zinc-100">
+                English {draft.word_count_en ? <span className="font-normal text-zinc-400">· {draft.word_count_en} words</span> : null}
+              </h4>
+              <CopyButton text={draft.body_english} id="english" copied={copiedSection} onCopy={handleCopy} />
             </div>
-            <button
-              onClick={() => handleCopy(draft.body_english, 'english')}
-              className="flex items-center gap-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors"
-            >
-              {copiedSection === 'english' ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy
-                </>
-              )}
-            </button>
-          </div>
-          <div className="p-4 bg-black/20 rounded-lg border border-white/10 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
-            {draft.body_english}
+            <div className="p-4 bg-black/30 rounded-lg border border-white/10 text-sm text-zinc-200 whitespace-pre-wrap leading-relaxed">{draft.body_english}</div>
           </div>
         </div>
 
-        {/* Personalisation Note */}
         <div className="pt-4 border-t border-white/10">
-          <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Personalisation Strategy</h4>
-          <p className="text-sm text-zinc-400 italic">
-            "{draft.personalisation_note}"
-          </p>
+          <h4 className="text-sm font-semibold text-zinc-100 mb-1">Personalisation</h4>
+          <p className="text-sm text-zinc-400 italic">"{draft.personalisation_note}"</p>
         </div>
       </div>
-    </div>
-    </div>
+    </section>
   );
 }

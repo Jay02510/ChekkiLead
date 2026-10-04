@@ -1,10 +1,13 @@
 import React from 'react';
 import { EnrichedLead, FirebaseStatus } from '../types';
-import { Building2, MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Info, Save, ShieldCheck, ShieldAlert, Trash2 } from 'lucide-react';
+import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2 } from 'lucide-react';
+import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification } from '../lib/leadUi';
 
 interface LeadCardProps {
   lead: EnrichedLead;
   isSaved?: boolean;
+  // The queue view owns the status control in its action bar.
+  hideStatus?: boolean;
   onSave?: (lead: EnrichedLead) => void;
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail?: (naver_id: string) => void;
@@ -12,188 +15,149 @@ interface LeadCardProps {
   key?: string | number;
 }
 
-export function LeadCard({ lead, isSaved, onSave, onStatusChange, onVerifyEmail, onDelete }: LeadCardProps) {
-  const needsVerification = lead.email_confidence === 'estimated' && lead.email_verification !== 'verified';
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 4) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if (priority === 3) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    return 'bg-white/5 text-zinc-400 border-white/10';
-  };
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50';
 
-  const getInstitutionTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      hagwon: 'Hagwon (Academy)',
-      elementary_school: 'Elementary School',
-      kindergarten: 'Kindergarten',
-      international_school: 'International School',
-      tutoring_centre: 'Tutoring Centre'
-    };
-    return labels[type] || type;
-  };
+function Field({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 min-w-0">
+      <Icon className="w-4 h-4 text-zinc-500 shrink-0 mt-1" aria-hidden />
+      <div className="min-w-0">
+        <dt className="text-xs text-zinc-400">{label}</dt>
+        <dd className="text-sm text-zinc-100 break-words">{children}</dd>
+      </div>
+    </div>
+  );
+}
+
+export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete }: LeadCardProps) {
+  const verifyNeeded = needsVerification(lead);
+  const confidenceTone =
+    lead.email_confidence === 'scraped' ? 'text-emerald-300'
+    : lead.email_confidence === 'estimated' ? 'text-amber-300'
+    : 'text-zinc-400';
 
   return (
-    <div className="rounded-[2rem] border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
-    <div className="bg-brand-card rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] overflow-hidden">
-      <div className="p-6 border-b border-white/10">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-2xl font-black text-zinc-100 font-display tracking-tight break-keep">{lead.institution_name_en}</h2>
-            <h3 className="text-lg text-zinc-400 font-medium mt-1 font-korean break-keep">{lead.institution_name_kr}</h3>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className={`px-3 py-1 rounded-full text-sm font-semibold border flex items-center gap-1 ${getPriorityColor(lead.outreach_priority)}`}>
-              <Star className="w-4 h-4 fill-current" />
-              Priority {lead.outreach_priority}
-            </div>
-            {isSaved ? (
-              <div className="flex flex-col items-end gap-1">
-                <select
-                  value={lead.firebase_status}
-                  onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
-                  disabled={lead.firebase_status === 'opted_out' || (needsVerification && lead.firebase_status === 'not_contacted')}
-                  title={lead.firebase_status === 'opted_out' ? 'This lead opted out — status is locked.' : needsVerification ? 'Verify the email address before marking this lead as contacted.' : undefined}
-                  className="text-xs font-medium bg-black/20 text-zinc-200 border border-white/10 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="not_contacted">Not Contacted</option>
-                  <option value="pending">Pending</option>
-                  <option value="sent">Sent</option>
-                  <option value="replied">Replied</option>
-                  <option value="bounced">Bounced</option>
-                  <option value="opted_out">Opted Out</option>
-                </select>
-                {lead.last_contacted_at && (
-                  <span className="text-[10px] text-zinc-500">
-                    Last sent: {new Date(lead.last_contacted_at).toLocaleDateString()}
-                    {' '}({Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / 86400000)}d ago)
-                  </span>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={() => onDelete(lead.naver_id)}
-                    className="flex items-center gap-1 text-[11px] font-medium text-zinc-600 hover:text-red-400 transition-colors"
-                    title="Delete this lead permanently"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => onSave?.(lead)}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-brand-orange text-black hover:bg-orange-400 rounded-full px-3 py-1.5 transition-colors active:scale-[0.97] shadow-lg shadow-orange-500/25"
-              >
-                <Save className="w-3.5 h-3.5" />
-                Save to Database
-              </button>
-            )}
-          </div>
+    <section className="rounded-2xl border border-white/10 bg-brand-card">
+      <div className="flex items-start justify-between gap-4 p-5 sm:p-6">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-black text-zinc-100 font-display tracking-tight break-keep">{lead.institution_name_en}</h2>
+          <p className="text-base text-zinc-400 mt-0.5 font-korean break-keep">{lead.institution_name_kr}</p>
         </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border ${priorityTone(lead.outreach_priority)}`}>
+            <Star className="w-3.5 h-3.5 fill-current" aria-hidden />
+            Priority {lead.outreach_priority}
+          </span>
+          {!isSaved && (
+            <button
+              onClick={() => onSave?.(lead)}
+              className={`inline-flex items-center gap-1.5 text-sm font-semibold bg-brand-orange text-black hover:bg-orange-400 rounded-full px-4 py-1.5 transition-colors active:scale-[0.97] ${focusRing}`}
+            >
+              <Save className="w-4 h-4" aria-hidden />
+              Save lead
+            </button>
+          )}
+          {isSaved && !hideStatus && (
+            <select
+              aria-label="Lead status"
+              value={lead.firebase_status}
+              onChange={(e) => onStatusChange?.(lead.naver_id, e.target.value as FirebaseStatus)}
+              disabled={lead.firebase_status === 'opted_out' || (verifyNeeded && lead.firebase_status === 'not_contacted')}
+              title={lead.firebase_status === 'opted_out' ? 'This lead opted out — status is locked.' : verifyNeeded ? 'Verify the email address before marking this lead as contacted.' : undefined}
+              className={`text-sm bg-black/30 text-zinc-100 border border-white/10 rounded-lg px-2.5 py-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focusRing}`}
+            >
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-400 text-sm font-medium">
-            <Building2 className="w-4 h-4" />
-            {getInstitutionTypeLabel(lead.institution_type)}
+      <div className="flex flex-wrap gap-2 px-5 sm:px-6 pb-5">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-300 text-sm font-medium">
+          <Building2 className="w-4 h-4" aria-hidden />
+          {institutionLabel(lead.institution_type)}
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-300 text-sm font-medium">
+          <Users className="w-4 h-4" aria-hidden />
+          {lead.student_age_range}
+        </span>
+        {lead.cefr_levels_taught?.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/10 text-violet-300 text-sm font-medium">
+            <GraduationCap className="w-4 h-4" aria-hidden />
+            {lead.cefr_levels_taught.join(', ')}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 text-sm font-medium">
-            <Users className="w-4 h-4" />
-            {lead.student_age_range}
-          </span>
-          {lead.cefr_levels_taught && lead.cefr_levels_taught.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/10 text-violet-400 text-sm font-medium">
-              <GraduationCap className="w-4 h-4" />
-              {lead.cefr_levels_taught.join(', ')}
+        )}
+      </div>
+
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 px-5 sm:px-6 py-5 border-t border-white/10">
+        <Field icon={Mail} label="Email">
+          <span className="block">{lead.email || '—'}</span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+            <span className={`text-xs font-medium ${confidenceTone}`}>
+              {lead.email_confidence}{lead.email_verification === 'verified' ? ', verified' : ''}
             </span>
-          )}
+            {verifyNeeded && isSaved ? (
+              <button
+                onClick={() => onVerifyEmail?.(lead.naver_id)}
+                className={`inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200 rounded ${focusRing}`}
+                title="Confirm you checked this address (e.g. on the academy's site) before sending"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" aria-hidden />
+                Mark as verified
+              </button>
+            ) : lead.email_confidence !== 'unknown' && !verifyNeeded ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" aria-label="Email verified or scraped" />
+            ) : null}
+          </span>
+        </Field>
+        <Field icon={Phone} label="Phone"><span className="font-mono tabular-nums">{lead.phone || '—'}</span></Field>
+        <Field icon={MapPin} label="Address">{lead.address_full || '—'}</Field>
+        <Field icon={Globe} label="Website">
+          {lead.website ? (
+            <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className={`text-orange-300 hover:underline underline-offset-2 break-all rounded ${focusRing}`}>
+              {lead.website}
+            </a>
+          ) : '—'}
+        </Field>
+        <div className="md:col-span-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-zinc-400">
+          <span>{lead.city}, {lead.district}</span>
+          <span>{lead.approx_students} students</span>
+          <span className="font-mono text-xs self-center">{lead.naver_id}</span>
         </div>
-      </div>
+      </dl>
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider">Contact Info</h4>
-
-          {lead.address_full && (
-            <div className="flex items-start gap-3 text-zinc-400">
-              <MapPin className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
-              <span className="text-sm">{lead.address_full}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 text-zinc-400">
-            <Phone className="w-5 h-5 text-zinc-500 shrink-0" />
-            <span className="text-sm font-mono">{lead.phone}</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-zinc-400">
-            <Mail className="w-5 h-5 text-zinc-500 shrink-0" />
-            <div className="flex flex-col flex-1">
-              <span className="text-sm text-zinc-300">{lead.email}</span>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs ${needsVerification ? 'text-amber-400 font-medium' : 'text-zinc-500'}`}>
-                  ({lead.email_confidence}{lead.email_verification === 'verified' ? ', verified' : ''})
-                </span>
-                {needsVerification ? (
-                  <button
-                    onClick={() => onVerifyEmail?.(lead.naver_id)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300"
-                    title="Confirm you checked this address (e.g. on the academy's site) before sending"
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    Mark as manually verified
-                  </button>
-                ) : lead.email_confidence !== 'unknown' && (
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {lead.website && (
-            <div className="flex items-center gap-3 text-zinc-400">
-              <Globe className="w-5 h-5 text-zinc-500 shrink-0" />
-              <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:underline truncate">
-                {lead.website}
-              </a>
-            </div>
-          )}
+      <div className="px-5 sm:px-6 py-5 border-t border-white/10 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-100">Why it fits</h3>
+          <p className="text-sm text-zinc-300 mt-1 leading-relaxed">{lead.fit_reason}</p>
         </div>
-
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider">Business Details</h4>
-
-          <div className="bg-black/20 rounded-xl p-4 space-y-3 border border-white/5">
-            <div>
-              <span className="text-xs text-zinc-500 font-medium block mb-1">Location</span>
-              <span className="text-sm text-zinc-200 font-medium">{lead.city}, {lead.district}</span>
-            </div>
-            <div>
-              <span className="text-xs text-zinc-500 font-medium block mb-1">Estimated Size</span>
-              <span className="text-sm text-zinc-200 font-medium">{lead.approx_students}</span>
-            </div>
-            <div>
-              <span className="text-xs text-zinc-500 font-medium block mb-1">Naver ID</span>
-              <span className="text-sm text-zinc-200 font-mono">{lead.naver_id}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 py-4 bg-amber-500/[0.06] border-t border-amber-500/10 flex items-start gap-3">
-        <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-        <div className="space-y-2">
+        {lead.agent_notes && (
           <div>
-            <h4 className="text-sm font-semibold text-amber-300">Fit Reason</h4>
-            <p className="text-sm text-amber-200/80 mt-0.5">{lead.fit_reason}</p>
+            <h3 className="text-sm font-semibold text-zinc-100">Notes</h3>
+            <p className="text-sm text-zinc-400 mt-1 leading-relaxed">{lead.agent_notes}</p>
           </div>
-          {lead.agent_notes && (
-            <div>
-              <h4 className="text-sm font-semibold text-amber-300">Agent Notes</h4>
-              <p className="text-sm text-amber-200/80 mt-0.5">{lead.agent_notes}</p>
-            </div>
+        )}
+      </div>
+
+      {isSaved && (lead.last_contacted_at || onDelete) && (
+        <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3 border-t border-white/10 text-xs text-zinc-400">
+          <span>
+            {lead.last_contacted_at
+              ? `Last sent ${new Date(lead.last_contacted_at).toLocaleDateString()} (${Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / 86400000)}d ago)`
+              : ''}
+          </span>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(lead.naver_id)}
+              className={`inline-flex items-center gap-1.5 font-medium text-zinc-400 hover:text-red-400 transition-colors rounded ${focusRing}`}
+              title="Remove this lead from your list (kept so sweeps won't re-add it)"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden />
+              Remove lead
+            </button>
           )}
         </div>
-      </div>
-    </div>
-    </div>
+      )}
+    </section>
   );
 }

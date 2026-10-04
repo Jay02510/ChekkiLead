@@ -18,3 +18,10 @@
   --color-brand-card: #0f1014;
   --color-brand-elevated: #0f0814;
 }
+
+/* Browser surfaces themed from the palette */
+::selection { background: rgb(249 115 22 / 0.35); color: #fff; }
+html { color-scheme: dark; scrollbar-color: rgb(255 255 255 / 0.18) transparent; scrollbar-width: thin; }
+* { scrollbar-color: rgb(255 255 255 / 0.18) transparent; scrollbar-width: thin; }
+input, textarea { caret-color: #f97316; }
+details > summary::-webkit-details-marker { display: none; }

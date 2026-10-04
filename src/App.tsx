@@ -4,7 +4,9 @@ import { EnrichedLead, EmailDraft, NaverSearchResult, FirebaseStatus } from './t
 import { getNaverId, stripHtml } from './lib/naverId';
 import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
-import { Loader2, Sparkles, Copy, Check, AlertCircle, Mail, Search, MapPin, Database, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Filter } from 'lucide-react';
+import { QueueView, DbSort } from './components/QueueView';
+import { isBlockedFromSending } from './lib/leadUi';
+import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db, authReady } from './lib/firebase';
@@ -17,7 +19,7 @@ const LEADS_COLLECTION = import.meta.env.DEV ? 'leads_dev' : 'leads';
 export default function App() {
   const shouldReduceMotion = useReducedMotion();
   const motionTransition = shouldReduceMotion ? { duration: 0 } : undefined;
-  const [activeTab, setActiveTab] = useState<'search' | 'database'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'database'>('database');
   
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,8 +39,11 @@ export default function App() {
   // Database State
   const [savedLeads, setSavedLeads] = useState<EnrichedLead[]>([]);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
-  const [dbFilter, setDbFilter] = useState<string>('all');
-  const [dbSort, setDbSort] = useState<'priority' | 'district' | 'date'>('priority');
+  const [dbFilter, setDbFilter] = useState<string>('not_contacted');
+  const [dbSort, setDbSort] = useState<DbSort>('priority');
+  const [listQuery, setListQuery] = useState('');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Bulk Sweep State — runs a list of queries unattended: search -> dedupe -> enrich -> save
@@ -249,7 +254,9 @@ export default function App() {
     try {
       await authReady;
       await setDoc(doc(db, LEADS_COLLECTION, lead.naver_id), { ...lead, saved_at: new Date().toISOString() });
-      toast.success('Lead saved to Firebase!');
+      toast.success('Lead saved', {
+        action: { label: 'Open in Leads', onClick: () => { setDbFilter('all'); setListQuery(''); setSelectedLeadId(lead.naver_id); setDetailOpen(true); setActiveTab('database'); } },
+      });
       fetchSavedLeads(); // Refresh to update "Saved" badges
     } catch (err) {
       console.error(err);
@@ -257,18 +264,18 @@ export default function App() {
     }
   };
 
-  const handleStatusChange = async (naver_id: string, status: FirebaseStatus) => {
+  const handleStatusChange = async (naver_id: string, status: FirebaseStatus): Promise<boolean> => {
     const current = savedLeads.find(l => l.naver_id === naver_id);
     if (current?.firebase_status === 'opted_out') {
       toast.error('This lead opted out — status is locked.');
-      return;
+      return false;
     }
     try {
       const updates: Record<string, any> = { firebase_status: status };
       if (status === 'sent') {
         if (sentToday >= DAILY_SEND_CAP) {
           toast.error(`Daily send cap reached (${DAILY_SEND_CAP}/day) — try again tomorrow.`);
-          return;
+          return false;
         }
         updates.last_contacted_at = new Date().toISOString();
       }
@@ -276,9 +283,11 @@ export default function App() {
       await updateDoc(doc(db, LEADS_COLLECTION, naver_id), updates);
       toast.success('Status updated successfully');
       fetchSavedLeads(); // Refresh
+      return true;
     } catch (err) {
       console.error("Failed to update status in Firebase", err);
       toast.error('Failed to update status');
+      return false;
     }
   };
 
@@ -325,14 +334,6 @@ export default function App() {
       return next;
     });
   };
-
-  // Same rule LeadCard enforces on a single lead (needsVerification), plus
-  // 'unknown' confidence — the bulk path called handleStatusChange directly
-  // and skipped this check entirely, so "Mark Sent" could send to unverified
-  // or wholly unknown addresses.
-  const isBlockedFromSending = (lead: EnrichedLead) =>
-    lead.email_confidence === 'unknown' ||
-    (lead.email_confidence === 'estimated' && lead.email_verification !== 'verified');
 
   const handleBulkStatusChange = async (status: FirebaseStatus) => {
     if (selectedIds.size === 0) return;
@@ -412,11 +413,35 @@ export default function App() {
   // savedLeads itself keeps soft-deleted leads (needed for dedupe — see
   // handleBulkSweep's `seen` set); only the list view hides them.
   const visibleLeads = savedLeads.filter(l => !l.deleted);
-  const filteredLeads = [...(dbFilter === 'all' ? visibleLeads : visibleLeads.filter(l => l.firebase_status === dbFilter))].sort((a, b) => {
-    if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
-    if (dbSort === 'date') return (b.saved_at || '').localeCompare(a.saved_at || '');
-    return b.outreach_priority - a.outreach_priority;
-  });
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: visibleLeads.length };
+    visibleLeads.forEach(l => { c[l.firebase_status] = (c[l.firebase_status] || 0) + 1; });
+    return c;
+  }, [savedLeads]);
+  const q = listQuery.trim().toLowerCase();
+  const filteredLeads = [...(dbFilter === 'all' ? visibleLeads : visibleLeads.filter(l => l.firebase_status === dbFilter))]
+    .filter(l => !q || [l.institution_name_en, l.institution_name_kr, l.district, l.city].some(f => (f || '').toLowerCase().includes(q)))
+    .sort((a, b) => {
+      if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
+      if (dbSort === 'date') return (b.saved_at || '').localeCompare(a.saved_at || '');
+      return b.outreach_priority - a.outreach_priority;
+    });
+
+  // Keep a lead selected: when the current one leaves the list (filtered
+  // out, or just marked sent), fall back to the first remaining lead.
+  useEffect(() => {
+    if (!filteredLeads.some(l => l.naver_id === selectedLeadId)) {
+      setSelectedLeadId(filteredLeads[0]?.naver_id ?? null);
+    }
+  }, [filteredLeads.map(l => l.naver_id).join('|')]);
+
+  const handleSendAndNext = async (lead: EnrichedLead) => {
+    const i = filteredLeads.findIndex(l => l.naver_id === lead.naver_id);
+    const next = filteredLeads[i + 1] ?? filteredLeads[i - 1];
+    if (await handleStatusChange(lead.naver_id, 'sent')) {
+      setSelectedLeadId(next?.naver_id ?? null);
+    }
+  };
 
   // Shared between the Search tab's temporary results and the Database
   // tab's saved leads — drafting an email shouldn't require re-searching.
@@ -451,192 +476,214 @@ export default function App() {
     );
   };
 
+
+  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50';
+  const inputClass = `w-full px-3 py-2 text-sm rounded-lg bg-black/30 border border-white/10 text-zinc-100 placeholder-zinc-500 focus:border-orange-500/60 disabled:opacity-50 ${focusRing}`;
+  const panel = 'rounded-2xl border border-white/10 bg-brand-card';
+
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-zinc-100">
       <Toaster position="top-right" richColors theme="dark" />
-      <header className="bg-brand-dark/90 backdrop-blur border-b border-white/10 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="bg-brand-dark/90 backdrop-blur border-b border-white/10 sticky top-0 z-20 h-14">
+        <div className="h-full px-4 sm:px-6 flex items-center gap-6">
+          <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-brand-orange rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-black" />
+              <Sparkles className="w-5 h-5 text-black" aria-hidden />
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-zinc-100 font-display">Chekki AI</h1>
-              <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Lead Enrichment</p>
-            </div>
+            <h1 className="text-lg font-black tracking-tight font-display">Chekki AI</h1>
           </div>
-          <div className="flex items-center gap-1 bg-white/5 border border-white/10 p-1 rounded-full backdrop-blur">
+          <nav className="flex items-center gap-1 h-full" aria-label="Views">
+            {([['database', 'Leads', Inbox], ['search', 'Find', Search]] as const).map(([tab, label, Icon]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                aria-current={activeTab === tab ? 'page' : undefined}
+                className={`h-full px-3 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors ${focusRing} ${activeTab === tab ? 'border-orange-500 text-zinc-50' : 'border-transparent text-zinc-400 hover:text-zinc-100'}`}
+              >
+                <Icon className="w-4 h-4" aria-hidden /> {label}
+                {tab === 'database' && <span className="text-xs tabular-nums text-zinc-400">{visibleLeads.length}</span>}
+              </button>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-2" title="Emails marked sent today against the daily cap">
+              <span className={`text-sm tabular-nums ${sentToday >= DAILY_SEND_CAP ? 'text-red-300' : 'text-zinc-300'}`}>Sent today {sentToday}/{DAILY_SEND_CAP}</span>
+              <span className="hidden sm:flex gap-0.5" aria-hidden>
+                {Array.from({ length: DAILY_SEND_CAP }, (_, i) => (
+                  <span key={i} className={`w-1.5 h-4 rounded-sm ${i < sentToday ? (sentToday >= DAILY_SEND_CAP ? 'bg-red-400' : 'bg-brand-orange') : 'bg-white/10'}`} />
+                ))}
+              </span>
+            </div>
             <button
-              onClick={() => setActiveTab('search')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors active:scale-[0.97] ${activeTab === 'search' ? 'bg-orange-500/10 border border-orange-500/30 text-orange-500' : 'border border-transparent text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+              onClick={handleExportCSV}
+              disabled={savedLeads.length === 0}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50 ${focusRing}`}
             >
-              <div className="flex items-center gap-2"><Search className="w-4 h-4"/> Search</div>
-            </button>
-            <button
-              onClick={() => setActiveTab('database')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors active:scale-[0.97] ${activeTab === 'database' ? 'bg-orange-500/10 border border-orange-500/30 text-orange-500' : 'border border-transparent text-zinc-400 hover:bg-white/5 hover:text-white'}`}
-            >
-              <div className="flex items-center gap-2"><Database className="w-4 h-4"/> Database</div>
+              <Download className="w-4 h-4" aria-hidden />
+              <span className="hidden sm:inline">Export CSV</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'search' ? (
+      {activeTab === 'database' ? (
+        <QueueView
+          leads={filteredLeads}
+          counts={counts}
+          isLoading={isLoadingDb}
+          filter={dbFilter}
+          onFilter={setDbFilter}
+          sort={dbSort}
+          onSort={setDbSort}
+          listQuery={listQuery}
+          onListQuery={setListQuery}
+          selectedId={selectedLeadId}
+          onSelect={(id) => { setSelectedLeadId(id); setDetailOpen(true); }}
+          detailOpen={detailOpen}
+          onCloseDetail={() => setDetailOpen(false)}
+          checkedIds={selectedIds}
+          onToggleChecked={toggleSelect}
+          onClearChecked={() => setSelectedIds(new Set())}
+          onBulkStatus={handleBulkStatusChange}
+          onBulkDelete={handleBulkDelete}
+          onStatusChange={handleStatusChange}
+          onVerifyEmail={handleVerifyEmail}
+          onDelete={handleDeleteLead}
+          onSendAndNext={handleSendAndNext}
+          renderDraft={renderEmailDraftSection}
+        />
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Column: Input */}
             <div className="lg:col-span-5 space-y-6">
-              
-              {/* Naver Search Section — double-bezel construction */}
-              <div className="rounded-[2rem] border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
-              <div className="bg-brand-card p-6 rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <h2 className="text-lg font-semibold text-zinc-100 mb-2 font-display">Search Naver Maps</h2>
-                <p className="text-sm text-zinc-500 mb-4">
-                  Search directly using the Naver Local API to find leads.
-                </p>
-
-                <form onSubmit={(e) => handleSearch(e, 1)} className="flex gap-2">
+              <section className={`${panel} p-5 sm:p-6`}>
+                <h2 className="text-lg font-semibold font-display">Search Naver Maps</h2>
+                <form onSubmit={(e) => handleSearch(e, 1)} className="flex gap-2 mt-4">
                   <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search className="h-5 w-5 text-zinc-500" />
-                    </div>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" aria-hidden />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="e.g. 강남구 영어학원"
-                      className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 sm:text-sm transition-colors"
+                      aria-label="Search query"
+                      className={`${inputClass} pl-9 py-2.5`}
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isSearching || !searchQuery.trim()}
-                    className="px-4 py-2.5 bg-brand-orange hover:bg-orange-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-semibold rounded-full shadow-lg shadow-orange-500/25 transition-colors active:scale-[0.97] flex items-center gap-2"
+                    className={`px-5 py-2.5 bg-brand-orange hover:bg-orange-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black text-sm font-semibold rounded-full transition-colors active:scale-[0.97] flex items-center gap-2 ${focusRing}`}
                   >
-                    {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                    {isSearching ? <Loader2 className="w-4 h-4 animate-spin" aria-label="Searching" /> : 'Search'}
                   </button>
                 </form>
 
                 {searchResults.length > 0 && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                        Results {searchStart}-{Math.min(searchStart + 4, totalResults)} of {totalResults}
+                      <span className="text-sm text-zinc-300 tabular-nums">
+                        {searchStart}–{Math.min(searchStart + 4, totalResults)} of {totalResults}
                       </span>
-                      <div className="flex items-center gap-2">
-                        <button onClick={handlePrevPage} disabled={searchStart === 1} className="p-1 rounded hover:bg-white/5 disabled:opacity-50"><ChevronLeft className="w-4 h-4"/></button>
-                        <button onClick={handleNextPage} disabled={searchStart + 5 > totalResults} className="p-1 rounded hover:bg-white/5 disabled:opacity-50"><ChevronRight className="w-4 h-4"/></button>
+                      <div className="flex items-center gap-1">
+                        <button onClick={handlePrevPage} disabled={searchStart === 1} aria-label="Previous page" className={`p-1.5 rounded hover:bg-white/5 disabled:opacity-40 ${focusRing}`}><ChevronLeft className="w-4 h-4" /></button>
+                        <button onClick={handleNextPage} disabled={searchStart + 5 > totalResults} aria-label="Next page" className={`p-1.5 rounded hover:bg-white/5 disabled:opacity-40 ${focusRing}`}><ChevronRight className="w-4 h-4" /></button>
                       </div>
                     </div>
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                      {searchResults.map((result, idx) => {
+                    <ul className="space-y-2">
+                      {searchResults.map((result) => {
                         const isAlreadySaved = savedIds.has(getNaverId(result));
                         return (
-                          <button
-                            key={idx}
-                            onClick={() => handleSelectResult(result)}
-                            className="w-full text-left p-3 rounded-xl border border-white/10 hover:border-orange-500/30 hover:bg-orange-500/5 transition-colors group relative"
-                          >
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-medium text-zinc-100 group-hover:text-orange-400 pr-16">{stripHtml(result.title)}</h4>
-                              {isAlreadySaved && (
-                                <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Saved
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1 text-xs text-zinc-500">
-                              <MapPin className="w-3.5 h-3.5" />
-                              <span className="truncate">{result.address}</span>
-                            </div>
-                          </button>
+                          <li key={getNaverId(result)}>
+                            <button
+                              onClick={() => handleSelectResult(result)}
+                              className={`w-full text-left p-3 rounded-xl border border-white/10 hover:border-orange-500/40 hover:bg-orange-500/5 transition-colors ${focusRing}`}
+                            >
+                              <span className="flex justify-between items-start gap-3">
+                                <span className="font-medium text-zinc-100 break-keep">{stripHtml(result.title)}</span>
+                                {isAlreadySaved && (
+                                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/25">
+                                    <CheckCircle2 className="w-3 h-3" aria-hidden /> Saved
+                                  </span>
+                                )}
+                              </span>
+                              <span className="flex items-center gap-1.5 mt-1 text-xs text-zinc-400">
+                                <MapPin className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                <span className="truncate">{result.address}</span>
+                              </span>
+                            </button>
+                          </li>
                         );
                       })}
-                    </div>
+                    </ul>
                     <button
                       onClick={handleBatchEnrich}
                       disabled={isBatchEnriching}
-                      className="w-full mt-4 py-2.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/30 font-medium rounded-full transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
+                      className={`w-full mt-4 py-2.5 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20 border border-orange-500/30 text-sm font-medium rounded-full transition-colors active:scale-[0.97] flex items-center justify-center gap-2 disabled:opacity-60 ${focusRing}`}
                     >
-                      {isBatchEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                      Batch Enrich All {searchResults.length} Results
+                      {isBatchEnriching ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Layers className="w-4 h-4" aria-hidden />}
+                      Enrich all {searchResults.length} results
                     </button>
                   </div>
                 )}
-              </div>
-              </div>
+              </section>
 
-              {/* Bulk Sweep Section — double-bezel construction */}
-              <div className="rounded-[2rem] border border-white/10 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
-              <div className="bg-brand-card p-6 rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
-                <h2 className="text-lg font-semibold text-zinc-100 mb-2 font-display">Bulk Sweep</h2>
-                <p className="text-sm text-zinc-500 mb-4">
-                  One query per line (e.g. district + institution type). Runs search → enrich → save unattended, skipping anything already in your database.
-                </p>
-
-                <div className="space-y-2 mb-3">
-                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Districts</label>
-                  <input
-                    type="text"
-                    value={matrixDistricts}
-                    onChange={(e) => setMatrixDistricts(e.target.value)}
-                    disabled={isBulkRunning}
-                    placeholder="Districts, comma separated"
-                    className="w-full px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
-                  />
-                  <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Keywords</label>
-                  <input
-                    type="text"
-                    value={matrixKeywords}
-                    onChange={(e) => setMatrixKeywords(e.target.value)}
-                    disabled={isBulkRunning}
-                    placeholder="Keywords, comma separated"
-                    className="w-full px-3 py-2 border border-white/10 rounded-lg text-xs font-mono bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50"
-                  />
+              <details className={`${panel} group`} open={isBulkRunning || bulkLog.length > 0}>
+                <summary className={`cursor-pointer list-none p-5 sm:p-6 flex items-center justify-between rounded-2xl ${focusRing}`}>
+                  <span>
+                    <span className="block text-lg font-semibold font-display">Bulk sweep</span>
+                    <span className="block text-sm text-zinc-400 mt-0.5">Search, enrich and save many queries unattended.</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-zinc-400 transition-transform group-open:rotate-90" aria-hidden />
+                </summary>
+                <div className="px-5 sm:px-6 pb-6 space-y-3">
+                  <p className="text-sm text-zinc-400">One query per line. Anything already in your database is skipped.</p>
+                  <label className="block text-sm text-zinc-300">Districts
+                    <input type="text" value={matrixDistricts} onChange={(e) => setMatrixDistricts(e.target.value)} disabled={isBulkRunning} placeholder="Comma separated" className={`${inputClass} mt-1 font-mono text-xs`} />
+                  </label>
+                  <label className="block text-sm text-zinc-300">Keywords
+                    <input type="text" value={matrixKeywords} onChange={(e) => setMatrixKeywords(e.target.value)} disabled={isBulkRunning} placeholder="Comma separated" className={`${inputClass} mt-1 font-mono text-xs`} />
+                  </label>
                   <button
                     onClick={handleGenerateMatrix}
                     disabled={isBulkRunning}
-                    className="w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-xs font-semibold rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
+                    className={`w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 border border-white/10 text-sm font-medium rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50 ${focusRing}`}
                   >
-                    Generate combos
+                    Fill queries from districts × keywords
                   </button>
+                  <textarea
+                    value={bulkQueries}
+                    onChange={(e) => setBulkQueries(e.target.value)}
+                    disabled={isBulkRunning}
+                    rows={5}
+                    aria-label="Bulk queries"
+                    placeholder={'강남구 영어학원\n서초구 영어학원\n분당구 유치원'}
+                    className={`${inputClass} font-mono`}
+                  />
+                  <button
+                    onClick={handleBulkSweep}
+                    disabled={isBulkRunning || !bulkQueries.trim()}
+                    className={`w-full py-2.5 bg-brand-orange hover:bg-orange-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black text-sm font-semibold rounded-full transition-colors active:scale-[0.97] flex items-center justify-center gap-2 ${focusRing}`}
+                  >
+                    {isBulkRunning ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Layers className="w-4 h-4" aria-hidden />}
+                    {isBulkRunning ? `Sweeping ${bulkStats.queriesDone}/${bulkStats.queriesTotal}…` : 'Run bulk sweep'}
+                  </button>
+                  {(isBulkRunning || bulkLog.length > 0) && (
+                    <div>
+                      <div className="flex items-center gap-3 text-sm mb-2 tabular-nums">
+                        <span className="text-emerald-300">Saved {bulkStats.saved}</span>
+                        <span className="text-zinc-400">Skipped {bulkStats.skipped}</span>
+                        {bulkStats.failed > 0 && <span className="text-red-300">Failed {bulkStats.failed}</span>}
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1 bg-black/30 rounded-lg border border-white/10 p-3" role="log">
+                        {bulkLog.map((line, i) => (
+                          <p key={i} className="text-xs text-zinc-300 font-mono">{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                <textarea
-                  value={bulkQueries}
-                  onChange={(e) => setBulkQueries(e.target.value)}
-                  disabled={isBulkRunning}
-                  rows={5}
-                  placeholder={'강남구 영어학원\n서초구 영어학원\n분당구 유치원'}
-                  className="w-full px-3 py-2.5 border border-white/10 rounded-xl bg-black/20 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 sm:text-sm font-mono transition-colors disabled:opacity-50"
-                />
-                <button
-                  onClick={handleBulkSweep}
-                  disabled={isBulkRunning || !bulkQueries.trim()}
-                  className="w-full mt-3 py-2.5 bg-brand-orange hover:bg-orange-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-semibold rounded-full shadow-lg shadow-orange-500/25 transition-colors active:scale-[0.97] flex items-center justify-center gap-2"
-                >
-                  {isBulkRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                  {isBulkRunning ? `Sweeping (${bulkStats.queriesDone}/${bulkStats.queriesTotal})...` : 'Run Bulk Sweep'}
-                </button>
-
-                {(isBulkRunning || bulkLog.length > 0) && (
-                  <div className="mt-4">
-                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                      <span className="text-emerald-400">Saved {bulkStats.saved}</span>
-                      <span className="text-zinc-500">Skipped {bulkStats.skipped}</span>
-                      {bulkStats.failed > 0 && <span className="text-red-400">Failed {bulkStats.failed}</span>}
-                    </div>
-                    <div className="max-h-40 overflow-y-auto space-y-1 bg-black/20 rounded-lg border border-white/10 p-3">
-                      {bulkLog.map((line, i) => (
-                        <p key={i} className="text-xs text-zinc-400 font-mono">{line}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              </div>
+              </details>
 
               <AnimatePresence>
                 {error && (
@@ -645,168 +692,56 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={motionTransition}
-                    className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400"
+                    role="alert"
+                    className="p-4 bg-red-500/10 border border-red-500/25 rounded-xl flex items-start gap-3 text-red-300"
                   >
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden />
                     <p className="text-sm">{error}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Right Column: Output */}
             <div className="lg:col-span-7 space-y-6">
-              <h2 className="text-lg font-semibold text-zinc-100 mb-2 font-display">Enriched Profiles</h2>
+              <h2 className="text-lg font-semibold font-display">Enriched profiles</h2>
 
-              <AnimatePresence mode="popLayout">
-                {isLoading && enrichedLeads.length === 0 && (
-                  <motion.div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-                    <Loader2 className="w-8 h-8 animate-spin mb-4" />
-                    <p>Enriching lead data...</p>
-                  </motion.div>
-                )}
-
-                {enrichedLeads.map((lead) => (
-                  <motion.div
-                    key={lead.naver_id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={motionTransition}
-                    className="space-y-4 pb-8 border-b border-white/10 last:border-0"
-                  >
-                    <LeadCard
-                      lead={lead}
-                      onSave={handleSaveLead}
-                      isSaved={savedLeads.some(l => l.naver_id === lead.naver_id)}
-                      onStatusChange={handleStatusChange}
-                      onVerifyEmail={handleVerifyEmail}
-                    />
-                    {renderEmailDraftSection(lead)}
-                  </motion.div>
-                ))}
-
-                {!isLoading && enrichedLeads.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={motionTransition}
-                    className="h-96 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02]"
-                  >
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                      <Sparkles className="w-8 h-8 text-zinc-600" />
-                    </div>
-                    <h3 className="text-lg font-medium text-zinc-100 mb-1 font-display">No Data Yet</h3>
-                    <p className="text-sm text-zinc-500 max-w-sm">
-                      Search Naver Maps and select a result to enrich it.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        ) : (
-          /* Database Tab */
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-zinc-100 font-display">Saved Leads Database</h2>
-                <span className="text-sm font-medium text-zinc-500">{filteredLeads.length} leads found</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Filter className="h-4 w-4 text-zinc-500" />
-                  </div>
-                  <select
-                    value={dbFilter}
-                    onChange={(e) => setDbFilter(e.target.value)}
-                    className="pl-9 pr-8 py-2 border border-white/10 rounded-lg text-sm font-medium bg-black/20 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 appearance-none cursor-pointer"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="not_contacted">Not Contacted</option>
-                    <option value="pending">Pending</option>
-                    <option value="sent">Sent</option>
-                    <option value="replied">Replied</option>
-                    <option value="bounced">Bounced</option>
-                    <option value="opted_out">Opted Out</option>
-                  </select>
+              {isLoading && enrichedLeads.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-zinc-400" role="status">
+                  <Loader2 className="w-8 h-8 animate-spin mb-4" aria-hidden />
+                  <p>Enriching lead data…</p>
                 </div>
-                <select
-                  value={dbSort}
-                  onChange={(e) => setDbSort(e.target.value as typeof dbSort)}
-                  className="px-3 py-2 border border-white/10 rounded-lg text-sm font-medium bg-black/20 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 appearance-none cursor-pointer"
+              )}
+
+              {enrichedLeads.map((lead) => (
+                <motion.div
+                  key={lead.naver_id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={motionTransition}
+                  className="space-y-6 pb-8 border-b border-white/10 last:border-0"
                 >
-                  <option value="priority">Sort: Priority</option>
-                  <option value="district">Sort: District</option>
-                  <option value="date">Sort: Date Added</option>
-                </select>
-                <span className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${sentToday >= DAILY_SEND_CAP ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-white/5 text-zinc-400 border-white/10'}`}>
-                  Sent today: {sentToday}/{DAILY_SEND_CAP}
-                </span>
-                <button
-                  onClick={handleExportCSV}
-                  disabled={savedLeads.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-200 text-sm font-medium rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
-                >
-                  <Download className="w-4 h-4" />
-                  Export CSV
-                </button>
-              </div>
+                  <LeadCard
+                    lead={lead}
+                    onSave={handleSaveLead}
+                    isSaved={savedLeads.some(l => l.naver_id === lead.naver_id)}
+                    onStatusChange={handleStatusChange}
+                    onVerifyEmail={handleVerifyEmail}
+                  />
+                  {renderEmailDraftSection(lead)}
+                </motion.div>
+              ))}
+
+              {!isLoading && enrichedLeads.length === 0 && (
+                <div className="py-20 flex flex-col items-center text-center border border-dashed border-white/10 rounded-2xl">
+                  <Sparkles className="w-8 h-8 text-zinc-500 mb-4" aria-hidden />
+                  <h3 className="text-lg font-medium font-display mb-1">Nothing enriched yet</h3>
+                  <p className="text-sm text-zinc-400 max-w-sm">Search Naver Maps and pick a result to enrich it. Saved leads land in the Leads queue.</p>
+                </div>
+              )}
             </div>
-
-            {selectedIds.size > 0 && (
-              <div className="flex flex-wrap items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-                <span className="text-sm font-semibold text-orange-400">{selectedIds.size} selected</span>
-                <button onClick={() => handleBulkStatusChange('sent')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Sent</button>
-                <button onClick={() => handleBulkStatusChange('replied')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Replied</button>
-                <button onClick={() => handleBulkStatusChange('opted_out')} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-white/10">Mark Opted Out</button>
-                <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors active:scale-[0.97] border border-red-500/20">Delete</button>
-                <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-zinc-500 hover:text-zinc-300 text-xs font-medium transition-colors ml-auto">Clear selection</button>
-              </div>
-            )}
-
-            {isLoadingDb ? (
-              <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-zinc-500" /></div>
-            ) : filteredLeads.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {filteredLeads.map(lead => (
-                  <div key={lead.naver_id} className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(lead.naver_id)}
-                        onChange={() => toggleSelect(lead.naver_id)}
-                        disabled={lead.firebase_status === 'opted_out'}
-                        title={lead.firebase_status === 'opted_out' ? 'Opted-out leads are locked out of bulk actions' : undefined}
-                        className="mt-8 w-4 h-4 rounded border-white/20 bg-black/20 accent-orange-500 cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label={`Select ${lead.institution_name_en}`}
-                      />
-                      <div className="flex-1">
-                        <LeadCard
-                          lead={lead}
-                          isSaved={true}
-                          onStatusChange={handleStatusChange}
-                          onVerifyEmail={handleVerifyEmail}
-                          onDelete={handleDeleteLead}
-                        />
-                      </div>
-                    </div>
-                    {renderEmailDraftSection(lead)}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
-                <Database className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-zinc-100 font-display">No leads found</h3>
-                <p className="text-sm text-zinc-500">
-                  {dbFilter === 'all' ? 'Enrich some leads and click "Save to Database" to see them here.' : `No leads match the "${dbFilter}" status.`}
-                </p>
-              </div>
-            )}
           </div>
-        )}
-      </main>
+        </main>
+      )}
     </div>
   );
 }
