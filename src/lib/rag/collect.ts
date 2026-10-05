@@ -56,17 +56,40 @@ const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 const BRANCH_SUFFIX = /(점|캠퍼스|센터|직영|본관|별관)$/;
 const AREA_SUFFIX = /[구시동읍면군로길]$/;
 
-// Korean name with branch words removed, spaces removed, lowercased:
-// "해커스어학원 강남역캠퍼스 본관" -> "해커스어학원". Tokens that are just the
-// lead's own district ("분당" in "DYB최선어학원 분당 직영") are branch words too.
-export function coreName(nameKr: string, district = ""): string {
-  const districtStem = district.replace(AREA_SUFFIX, "");
-  const kept = stripHtml(nameKr)
+// Words naming the kind of school, not the school. Longest first so
+// "영어유치원" is stripped before "유치원".
+const GENERIC_TYPES = ["영어유치원", "영어학원", "어린이집", "교습소", "공부방", "어학원", "유치원", "학원"];
+const stripGeneric = (token: string) => {
+  const g = GENERIC_TYPES.find(w => token.endsWith(w));
+  return g ? token.slice(0, -g.length) : token;
+};
+
+const districtStemOf = (district: string) => district.replace(AREA_SUFFIX, "");
+
+// The academy's everyday name as tokens: branch words, the lead's own
+// district and generic school-type words (whole or as a suffix) removed.
+// "랜퍼스 키즈잉글리쉬 어학원 송파" -> ["랜퍼스", "키즈잉글리쉬"].
+function nameTokens(nameKr: string, district: string): string[] {
+  const districtStem = districtStemOf(district);
+  return stripHtml(nameKr)
     .split(/\s+/)
     .filter(Boolean)
-    .filter(t => !BRANCH_SUFFIX.test(t) && !(districtStem && t === districtStem));
-  return norm(kept.length ? kept.join("") : stripHtml(nameKr));
+    .filter(t => !BRANCH_SUFFIX.test(t) && !(districtStem && t === districtStem))
+    .map(stripGeneric)
+    .filter(Boolean);
 }
+
+// Everyday name, spaces removed, lowercased: "OTP영어학원" -> "otp",
+// "해커스어학원 강남역캠퍼스 본관" -> "해커스". Falls back to the full name
+// when everything would be dropped.
+export function coreName(nameKr: string, district = ""): string {
+  const tokens = nameTokens(nameKr, district);
+  return norm(tokens.length ? tokens.join("") : stripHtml(nameKr));
+}
+
+// A core this short ("otp", "컬컴") appears in unrelated posts, so a post must
+// also name one of the lead's own areas to count.
+const isShortCore = (core: string) => core.length < 3 || (/^[a-z]+$/.test(core) && core.length <= 3);
 
 // Areas a same-named academy in another city would mention. Deliberately
 // excludes 서울/성남 — too broad to tell a branch from the wrong branch.
@@ -76,6 +99,9 @@ const KNOWN_AREAS = [
   "동작", "관악", "영등포", "구로", "서대문", "은평", "중랑", "동대문", "성북", "강북", "도봉", "금천", "평촌",
   "동탄", "하남", "김포", "고양", "안양", "부천", "천안", "청주", "제주", "세종", "창원", "전주", "포항",
 ];
+
+// Province-level words appear in too many unrelated posts to prove a match.
+const BROAD_AREA = /^(서울|서울특별|경기|경기도|.+광역|.+특별자치)$/;
 
 function ownAreaStems(lead: CollectLead): string[] {
   return `${lead.district || ""} ${lead.address_full || ""}`
@@ -87,13 +113,15 @@ function ownAreaStems(lead: CollectLead): string[] {
 // Keep a post only if the academy's core name appears in its title or
 // description. A match that also names a *different* known area and none of
 // the lead's own areas is a same-name academy elsewhere — dropped. A post
-// that names no area at all is ambiguous and kept.
+// that names no area at all is ambiguous and kept — except for very short
+// names, which must name one of the lead's own areas.
 export function isRelevantPost(post: Pick<BlogPost, "title" | "description">, lead: CollectLead): boolean {
   const text = norm(`${post.title} ${post.description}`);
   const core = coreName(lead.institution_name_kr, lead.district);
   if (!core || !text.includes(core)) return false;
 
   const own = ownAreaStems(lead);
+  if (isShortCore(core)) return own.filter(o => !BROAD_AREA.test(o)).some(o => text.includes(o));
   const mentioned = KNOWN_AREAS.filter(a => text.includes(a));
   if (mentioned.length === 0) return true;
   return mentioned.some(a => own.some(o => o.includes(a) || a.includes(o)));
@@ -153,7 +181,7 @@ export function classifyBlogPost(post: BlogPost, lead: CollectLead): SourceType 
   const postId = naverBlogId(post.bloggerlink) || naverBlogId(post.link);
   if (ownId && postId && ownId === postId) return "blog_own";
   const core = coreName(lead.institution_name_kr, lead.district);
-  if (core && norm(stripHtml(post.bloggername)).includes(core)) return "blog_own";
+  if (core && !isShortCore(core) && norm(stripHtml(post.bloggername)).includes(core)) return "blog_own";
   return "blog_third_party";
 }
 

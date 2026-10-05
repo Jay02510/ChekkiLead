@@ -31,11 +31,19 @@ const html = (body: string, status = 200, headers: Record<string, string> = { 'c
 
 describe('coreName', () => {
   it('drops branch suffixes and the lead district, then spaces and case', () => {
-    expect(coreName('DYB최선어학원 분당 직영', '분당구')).toBe('dyb최선어학원');
-    expect(coreName('해커스어학원 강남역캠퍼스 제5별관', '강남구')).toBe('해커스어학원');
+    expect(coreName('DYB최선어학원 분당 직영', '분당구')).toBe('dyb최선');
+    expect(coreName('해커스어학원 강남역캠퍼스 제5별관', '강남구')).toBe('해커스');
     expect(coreName('컬컴 잠실점', '송파구')).toBe('컬컴');
-    expect(coreName('YBM어학원 강남센터', '강남구')).toBe('ybm어학원');
+    expect(coreName('YBM어학원 강남센터', '강남구')).toBe('ybm');
   });
+  it('drops generic school-type words, whole or as a suffix', () => {
+    expect(coreName('랜퍼스 키즈잉글리쉬 어학원 송파', '송파구')).toBe('랜퍼스키즈잉글리쉬');
+    expect(coreName('OTP영어학원', '송파구')).toBe('otp');
+    expect(coreName('해맑은 영어유치원', '')).toBe('해맑은');
+    expect(coreName('새싹 공부방', '')).toBe('새싹');
+  });
+  it('keeps the full name when it is only a generic word', () =>
+    expect(coreName('영어유치원', '')).toBe('영어유치원'));
   it('keeps the full name when everything would be dropped', () => {
     expect(coreName('본관', '')).toBe('본관');
   });
@@ -86,6 +94,32 @@ describe('normalizeUrl', () => {
   });
   it('keeps the path and query', () =>
     expect(normalizeUrl('https://x.kr/a/b?id=3')).toBe('x.kr/a/b?id=3'));
+});
+
+describe('isRelevantPost with generic words and short names', () => {
+  const landfers = lead({ institution_name_kr: '랜퍼스 키즈잉글리쉬 어학원 송파', district: '송파구', address_full: '서울 송파구 올림픽로 240' });
+  it('matches a post that uses the everyday name', () =>
+    expect(isRelevantPost(post({ title: '랜퍼스 키즈잉글리쉬 송파 후기' }), landfers)).toBe(true));
+  it('matches the everyday name with no area (ambiguous)', () =>
+    expect(isRelevantPost(post({ title: '랜퍼스 키즈잉글리쉬 후기' }), landfers)).toBe(true));
+  it('drops the same name in another city', () =>
+    expect(isRelevantPost(post({ title: '랜퍼스 키즈잉글리쉬 부산 해운대 설명회' }), landfers)).toBe(false));
+
+  const otp = lead({ institution_name_kr: 'OTP영어학원', district: '송파구', address_full: '서울 송파구 올림픽로 240' });
+  it('needs an own-area mention for a 3-letter Latin name', () => {
+    expect(isRelevantPost(post({ title: 'OTP 영어학원 송파 후기' }), otp)).toBe(true);
+    expect(isRelevantPost(post({ title: 'OTP 영어 후기' }), otp)).toBe(false);
+  });
+  it('does not accept a province word as an area mention', () =>
+    expect(isRelevantPost(post({ title: 'OTP 서울 영어 후기' }), otp)).toBe(false));
+
+  const colcom = lead({ institution_name_kr: '컬컴 잠실점', district: '송파구', address_full: '서울 송파구 잠실동 40-1' });
+  it('needs an own-area mention for a 2-character name', () => {
+    expect(isRelevantPost(post({ title: '컬컴 잠실점 후기' }), colcom)).toBe(true);
+    expect(isRelevantPost(post({ title: '컬컴 영어 후기' }), colcom)).toBe(false);
+  });
+  it('does not call a blog "own" on a short name alone', () =>
+    expect(classifyBlogPost(post({ bloggername: '컬컴 맘 모임' }), { ...colcom, naver_raw: undefined })).toBe('blog_third_party'));
 });
 
 describe('classifyBlogPost', () => {
