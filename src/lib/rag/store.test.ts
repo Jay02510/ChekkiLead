@@ -17,17 +17,24 @@ const result: CollectResult = {
 };
 
 describe('saveSources', () => {
-  it('writes each source under leads/{id}/sources/{sourceId} without the id field, then updates the lead, in one batch', async () => {
+  it('writes each source under leads_v2/{id}/sources/{sourceId} without the id field, then updates the lead, in one batch', async () => {
     const { db, ops } = fakeDb();
     await saveSources(db, 'place_1', result);
     expect(ops[0][0]).toBe('set');
-    expect(ops[0][1]).toBe('leads/place_1/sources/abc123');
+    expect(ops[0][1]).toBe('leads_v2/place_1/sources/abc123');
     expect(ops[0][2]).not.toHaveProperty('id');
     expect(ops[0][2]).toMatchObject({ url: 'https://x.kr', type: 'website', status: 'ok', emails: ['a@x.kr'] });
     expect(ops[1][0]).toBe('update');
-    expect(ops[1][1]).toBe('leads/place_1');
+    expect(ops[1][1]).toBe('leads_v2/place_1');
     expect(ops[1][2]).toMatchObject({ source_counts: result.counts, candidate_emails: result.candidate_emails });
     expect(typeof ops[1][2].sources_collected_at).toBe('string');
     expect(ops.at(-1)).toEqual(['commit']);
+  });
+
+  it('writes to the collection it is given, so --gold can collect into the legacy leads', async () => {
+    const { db, ops } = fakeDb();
+    await saveSources(db, 'place_1', result, 'leads');
+    expect(ops[0][1]).toBe('leads/place_1/sources/abc123');
+    expect(ops[1][1]).toBe('leads/place_1');
   });
 });

@@ -15,6 +15,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { existsSync, writeFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEGACY_LEADS } from "../src/lib/collections";
 import { isLikelyTarget } from "../src/lib/leadFilter";
 import type { EnrichedLead } from "../src/types";
 
@@ -32,7 +33,7 @@ async function main() {
     process.exit(1);
   }
 
-  const snap = await adminDb().collection("leads").get();
+  const snap = await adminDb().collection(LEGACY_LEADS).get();
   const all = snap.docs.map(d => d.data() as EnrichedLead).filter(l => l.naver_raw && !l.deleted);
   const pool = all.filter(l => !l.non_target && isLikelyTarget(l.naver_raw!));
   console.log(`${all.length} leads with naver_raw, ${pool.length} are targets.`);

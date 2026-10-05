@@ -3,7 +3,8 @@
 // scripts/enrich-grounded.ts and /api/enrich-grounded.
 import type { Firestore } from "firebase-admin/firestore";
 import { collectForLead, type Source } from "./collect.js";
-import { saveSources, LEADS_COLLECTION } from "./store.js";
+import { saveSources } from "./store.js";
+import { LEADS } from "../collections.js";
 import { DEFAULT_GROUNDED_MODE, type EmbeddingStore } from "./ground.js";
 import { enrichGroundedServer, type GroundedDeps } from "../groundedEnrich.js";
 import type { EnrichedLead, GroundedMode } from "../../types";
@@ -44,7 +45,7 @@ export function mergeGrounded(lead: EnrichedLead, g: EnrichedLead): Record<strin
 }
 
 export async function loadStoredSources(db: Firestore, naverId: string): Promise<{ sources: Source[]; embeddings: EmbeddingStore }> {
-  const snap = await db.collection(LEADS_COLLECTION).doc(naverId).collection("sources").get();
+  const snap = await db.collection(LEADS).doc(naverId).collection("sources").get();
   const embeddings: EmbeddingStore = {};
   const sources = snap.docs.map(d => {
     const { embeddings: cached, ...data } = d.data() as any;
@@ -62,7 +63,7 @@ async function saveEmbeddings(db: Firestore, naverId: string, store: EmbeddingSt
     const sourceId = chunkId.split("#")[0];
     (bySource[sourceId] ??= {})[chunkId] = v;
   }
-  const sources = db.collection(LEADS_COLLECTION).doc(naverId).collection("sources");
+  const sources = db.collection(LEADS).doc(naverId).collection("sources");
   await Promise.all(Object.entries(bySource).map(([id, embeddings]) => sources.doc(id).update({ embeddings })));
 }
 
@@ -98,7 +99,7 @@ export async function reenrichLead(db: Firestore, lead: EnrichedLead, opts: Reen
   );
   const update = mergeGrounded(lead, grounded);
   if (opts.write) {
-    await db.collection(LEADS_COLLECTION).doc(lead.naver_id).update(update);
+    await db.collection(LEADS).doc(lead.naver_id).update(update);
     if (mode === "grounded_retrieval") await saveEmbeddings(db, lead.naver_id, embeddings);
   }
   return { update, grounded, collected };

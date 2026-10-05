@@ -7,6 +7,7 @@ import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { QueueView, DbSort } from './components/QueueView';
 import { isBlockedFromSending, factView } from './lib/leadUi';
+import { LEADS, DEV_LEADS } from './lib/collections';
 import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion } from 'firebase/firestore';
@@ -15,7 +16,7 @@ import { Toaster, toast } from 'sonner';
 
 // Keeps local dev writes out of the real outreach data — `npm run dev`
 // (import.meta.env.DEV) writes to a separate collection than production.
-const LEADS_COLLECTION = import.meta.env.DEV ? 'leads_dev' : 'leads';
+const LEADS_COLLECTION = import.meta.env.DEV ? DEV_LEADS : LEADS;
 
 export default function App() {
   const shouldReduceMotion = useReducedMotion();

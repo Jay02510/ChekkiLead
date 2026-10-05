@@ -12,6 +12,7 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEADS } from "../src/lib/collections";
 import { reenrichLead } from "../src/lib/rag/reenrich";
 import { DEFAULT_GROUNDED_MODE } from "../src/lib/rag/ground";
 import { canReenrich } from "../src/lib/leadUi";
@@ -28,7 +29,7 @@ async function main() {
     process.exit(1);
   }
   const db = adminDb();
-  const snap = await db.collection("leads").get();
+  const snap = await db.collection(LEADS).get();
   const leads = snap.docs.map(d => d.data() as EnrichedLead).filter(canReenrich);
   const batch = leads.slice(0, limit);
   console.log(`${snap.size} leads, ${leads.length} eligible, enriching ${batch.length} in ${mode}${write ? "" : " (dry run, nothing saved)"}\n`);

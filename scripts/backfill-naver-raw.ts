@@ -9,11 +9,11 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEGACY_LEADS } from "../src/lib/collections";
 import { searchNaver } from "../src/lib/serverActions";
 import { getNaverId } from "../src/lib/naverId";
 import type { EnrichedLead, NaverSearchResult } from "../src/types";
 
-const LEADS_COLLECTION = "leads";
 const write = process.argv.includes("--write");
 
 async function findMatch(lead: EnrichedLead): Promise<NaverSearchResult | null> {
@@ -29,7 +29,7 @@ async function findMatch(lead: EnrichedLead): Promise<NaverSearchResult | null> 
 
 async function main() {
   const db = adminDb();
-  const snap = await db.collection(LEADS_COLLECTION).get();
+  const snap = await db.collection(LEGACY_LEADS).get();
   const todo = snap.docs.filter(d => !d.data().naver_raw);
   console.log(`${snap.size} leads, ${todo.length} missing naver_raw${write ? "" : " (dry run)"}`);
 

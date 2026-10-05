@@ -12,16 +12,16 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEGACY_LEADS } from "../src/lib/collections";
 import { isLikelyTarget } from "../src/lib/leadFilter";
 import type { EnrichedLead } from "../src/types";
 
-const LEADS_COLLECTION = "leads";
 const write = process.argv.includes("--write");
 const unflag = process.argv.includes("--unflag");
 
 async function main() {
   const db = adminDb();
-  const snap = await db.collection(LEADS_COLLECTION).get();
+  const snap = await db.collection(LEGACY_LEADS).get();
   const flagged: string[] = [];
   const kept: string[] = [];
   let noRaw = 0;

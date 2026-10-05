@@ -1,6 +1,7 @@
 import { adminDb } from "../src/lib/firebaseAdmin.js";
 import { reenrichLead } from "../src/lib/rag/reenrich.js";
 import { canReenrich } from "../src/lib/leadUi.js";
+import { LEADS } from "../src/lib/collections.js";
 import type { EnrichedLead } from "../src/types";
 
 // Re-enriches ONE saved lead from its sources: collects them first if they're
@@ -12,7 +13,7 @@ export default async function handler(req: any, res: any) {
     const naverId = req.body?.naver_id;
     if (!naverId) return res.status(400).json({ error: "naver_id is required." });
     const db = adminDb();
-    const doc = await db.collection("leads").doc(naverId).get();
+    const doc = await db.collection(LEADS).doc(naverId).get();
     if (!doc.exists) return res.status(404).json({ error: "Lead not found." });
     const lead = doc.data() as EnrichedLead;
     if (!canReenrich(lead)) return res.status(409).json({ error: "This lead can't be re-enriched (removed, non-target, or already contacted)." });

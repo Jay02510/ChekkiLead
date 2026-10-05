@@ -12,7 +12,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
-import { LEADS_COLLECTION } from "../src/lib/rag/store";
+import { LEGACY_LEADS } from "../src/lib/collections";
 
 async function main() {
   const gold: { naver_id: string; name_kr: string }[] = JSON.parse(readFileSync("eval/gold.json", "utf8"));
@@ -21,7 +21,7 @@ async function main() {
 
   let empty = 0;
   for (const entry of gold) {
-    const leadRef = db.collection(LEADS_COLLECTION).doc(entry.naver_id);
+    const leadRef = db.collection(LEGACY_LEADS).doc(entry.naver_id);
     const [lead, sources] = await Promise.all([leadRef.get(), leadRef.collection("sources").get()]);
     const data = lead.data() ?? {};
     if (sources.empty) empty++;

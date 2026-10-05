@@ -13,6 +13,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { readFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEGACY_LEADS } from "../src/lib/collections";
 import type { EnrichedLead } from "../src/types";
 
 const file = process.argv.find((a, i) => i > 1 && a.endsWith(".json"));
@@ -24,7 +25,7 @@ async function main() {
     process.exit(1);
   }
   const map: Record<string, string> = JSON.parse(readFileSync(file, "utf8"));
-  const snap = await adminDb().collection("leads").get();
+  const snap = await adminDb().collection(LEGACY_LEADS).get();
   const leads = snap.docs.filter(d => !(d.data() as EnrichedLead).deleted);
 
   let changed = 0;

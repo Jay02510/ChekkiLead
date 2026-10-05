@@ -2,6 +2,7 @@ import { adminDb } from "../src/lib/firebaseAdmin.js";
 import { searchNaver, enrichLeadServer } from "../src/lib/serverActions.js";
 import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 import { isLikelyTarget } from "../src/lib/leadFilter.js";
+import { LEADS } from "../src/lib/collections.js";
 
 // Runs the same search -> dedupe -> enrich -> save pipeline as the UI's
 // "Bulk Sweep" button, unattended, on Vercel Cron (see vercel.json).
@@ -36,7 +37,6 @@ const KEYWORDS = ["영어유치원", "어린이영어학원", "초등영어학�
 const QUERIES = DISTRICTS.flatMap(d => KEYWORDS.map(k => `${d} ${k}`));
 const QUERIES_PER_RUN = 1;
 const MAX_PAGES_PER_QUERY = 1;
-const LEADS_COLLECTION = "leads";
 const CURSOR_DOC = "config/cron_sweep";
 
 export default async function handler(req: any, res: any) {
@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
   const startIndex = (cursorSnap.data()?.nextIndex ?? 0) % QUERIES.length;
   const todaysQueries = Array.from({ length: QUERIES_PER_RUN }, (_, i) => QUERIES[(startIndex + i) % QUERIES.length]);
 
-  const existing = await db.collection(LEADS_COLLECTION).select().get();
+  const existing = await db.collection(LEADS).select().get();
   const seen = new Set(existing.docs.map(d => d.id));
 
   const stats = { queriesRun: 0, saved: 0, skipped: 0, filtered: 0, failed: 0 };
@@ -87,7 +87,7 @@ export default async function handler(req: any, res: any) {
         }
         try {
           const enriched = await enrichLeadServer(item);
-          await db.collection(LEADS_COLLECTION).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });
+          await db.collection(LEADS).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });
           stats.saved++;
           log.push(`Saved: ${stripHtml(item.title)}`);
         } catch (err: any) {

@@ -10,13 +10,14 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
 import { adminDb } from "../src/lib/firebaseAdmin";
+import { LEADS } from "../src/lib/collections";
 import { englishSignal } from "../src/lib/leadFilter";
 import type { EnrichedLead } from "../src/types";
 
 const write = process.argv.includes("--write");
 
 async function main() {
-  const snap = await adminDb().collection("leads").get();
+  const snap = await adminDb().collection(LEADS).get();
   const groups: Record<string, string[]> = { confirmed: [], unsure: [], none: [] };
   let skipped = 0;
 

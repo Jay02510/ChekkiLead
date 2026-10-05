@@ -12,19 +12,40 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    // Read-only history (see src/lib/collections.ts). It holds the eval's gold
+    // leads and remembers which academies must never be contacted again, so
+    // nothing may change it from a client — not even the owner. The scripts
+    // that still edit it (backfill-naver-raw, flag-non-targets, set-websites,
+    // blank-legacy-guesses) use the Admin SDK, which bypasses these rules.
     match /leads/{leadId} {
-      allow read, write: if isOwner();
+      allow read: if isOwner();
+      allow write: if false;
     }
 
-    // Collected public text about each lead, written only by the Admin SDK
-    // (scripts/collect-sources.ts). The owner can read it; no client writes.
     match /leads/{leadId}/sources/{sourceId} {
       allow read: if isOwner();
       allow write: if false;
     }
 
-    match /leads_dev/{leadId} {
+    // Active collection: everything the v2 pipeline produces.
+    match /leads_v2/{leadId} {
       allow read, write: if isOwner();
+    }
+
+    // Collected public text about each lead, written only by the Admin SDK
+    // (scripts/collect-sources.ts). The owner can read it; no client writes.
+    match /leads_v2/{leadId}/sources/{sourceId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    match /leads_v2_dev/{leadId} {
+      allow read, write: if isOwner();
+    }
+
+    match /leads_v2_dev/{leadId}/sources/{sourceId} {
+      allow read: if isOwner();
+      allow write: if false;
     }
 
     match /config/{configId} {

@@ -1,5 +1,6 @@
 // Collects public text about each lead (blog posts, its own site/blog) and
-// stores it under leads/{naver_id}/sources. Does not touch enrichment.
+// stores it under {collection}/{naver_id}/sources. Does not touch enrichment.
+// Runs on the active collection, or on the legacy one with --gold.
 //
 //   npx tsx scripts/collect-sources.ts [--limit N] [--gold] [--force] [--write]
 //
@@ -14,7 +15,8 @@ dotenv.config({ path: ".env.local", override: true });
 import { readFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
 import { collectForLead, isOwnSourceEmail, type CollectResult } from "../src/lib/rag/collect";
-import { saveSources, LEADS_COLLECTION } from "../src/lib/rag/store";
+import { saveSources } from "../src/lib/rag/store";
+import { LEADS, LEGACY_LEADS } from "../src/lib/collections";
 import type { EnrichedLead } from "../src/types";
 
 const args = process.argv.slice(2);
@@ -35,7 +37,10 @@ const median = (xs: number[]) => {
 
 async function main() {
   const db = adminDb();
-  const snap = await db.collection(LEADS_COLLECTION).get();
+  // The gold set is sampled from the old collection and stays there, so
+  // --gold reads and writes LEGACY_LEADS; normal runs use the active one.
+  const collectionName = goldOnly ? LEGACY_LEADS : LEADS;
+  const snap = await db.collection(collectionName).get();
   const goldIds = goldOnly ? new Set<string>(JSON.parse(readFileSync("eval/gold.json", "utf8")).map((e: any) => e.naver_id)) : null;
 
   const skipped = { nonTarget: 0, deleted: 0, optedOut: 0, recent: 0, notGold: 0 };
@@ -50,7 +55,7 @@ async function main() {
     todo.push(lead);
   }
   const batch = todo.slice(0, limit);
-  console.log(`${snap.size} leads; collecting for ${batch.length}${write ? "" : " (dry run — nothing is written)"}. Skipped: ${JSON.stringify(skipped)}\n`);
+  console.log(`${snap.size} leads in ${collectionName}; collecting for ${batch.length}${write ? "" : " (dry run — nothing is written)"}. Skipped: ${JSON.stringify(skipped)}\n`);
 
   const results: { lead: EnrichedLead; result: CollectResult }[] = [];
   for (const lead of batch) {
@@ -59,7 +64,7 @@ async function main() {
     const c = result.counts;
     console.log(`${lead.institution_name_kr}: own ${c.blog_own}, third-party ${c.blog_third_party}, site ${c.website}, errors ${c.errors}, emails ${result.candidate_emails.map(e => `${e.email}${isOwnSourceEmail(e) ? "" : " (third-party)"}`).join(", ") || "-"}`);
     for (const s of result.sources.filter(s => s.status === "error")) console.log(`    error ${s.error}  ${s.url}`);
-    if (write) await saveSources(db, lead.naver_id, result);
+    if (write) await saveSources(db, lead.naver_id, result, collectionName);
   }
 
   // Coverage report
