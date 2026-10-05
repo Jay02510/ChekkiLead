@@ -1,4 +1,4 @@
-import { EnrichedLead, FirebaseStatus } from '../types';
+import { EnrichedLead, FirebaseStatus, GroundedFact } from '../types';
 
 export const STATUS_OPTIONS: { value: FirebaseStatus; label: string }[] = [
   { value: 'not_contacted', label: 'Not contacted' },
@@ -94,3 +94,23 @@ export function buildContactUpdate(
 export const canReenrich = (lead: Pick<EnrichedLead, 'deleted' | 'non_target' | 'firebase_status' | 'naver_raw'>) =>
   !lead.deleted && !lead.non_target && !!lead.naver_raw &&
   (lead.firebase_status === 'not_contacted' || lead.firebase_status === 'pending');
+
+// How one grounded fact reads on the lead card.
+export interface FactView {
+  kind: 'sourced' | 'inferred' | 'not_found';
+  text: string;
+  quote: string | null;
+  url: string | null;
+}
+
+export function factView(fact: GroundedFact | undefined): FactView {
+  if (!fact || fact.status === 'not_found' || fact.value == null || (Array.isArray(fact.value) && fact.value.length === 0)) {
+    return { kind: 'not_found', text: 'Not found', quote: null, url: null };
+  }
+  return {
+    kind: fact.status,
+    text: Array.isArray(fact.value) ? fact.value.join(', ') : fact.value,
+    quote: fact.quote,
+    url: fact.source_url,
+  };
+}

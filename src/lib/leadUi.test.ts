@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildContactUpdate, sendBlockReason, isBlockedFromSending } from './leadUi';
+import { buildContactUpdate, sendBlockReason, isBlockedFromSending, factView } from './leadUi';
 import type { EnrichedLead } from '../types';
 
 const lead = { email: 'guess@naver.com', phone: '', website: null as string | null, student_age_range: '', approx_students: '' };
@@ -42,5 +42,19 @@ describe('send blocking for leads in manual review', () => {
   it('does not block a reviewed lead with a good email', () => {
     expect(isBlockedFromSending({ ...base, needs_review: false })).toBe(false);
     expect(sendBlockReason(base)).toBeNull();
+  });
+});
+
+describe('factView', () => {
+  const base = { chunk_id: 'a#0', quote: '만 3~5세', source_url: 'https://x.kr', source_type: 'website', verification: 'passed' } as const;
+  it('shows a sourced fact with its link and quote', () =>
+    expect(factView({ ...base, value: '만 3–5세', status: 'sourced' })).toEqual({ kind: 'sourced', text: '만 3–5세', quote: '만 3~5세', url: 'https://x.kr' }));
+  it('marks an inferred fact', () =>
+    expect(factView({ ...base, value: ['Pre-A1', 'A1'], status: 'inferred' })).toMatchObject({ kind: 'inferred', text: 'Pre-A1, A1' }));
+  it('shows not found for not_found, a missing fact, or an empty value', () => {
+    const nf = { value: null, status: 'not_found', chunk_id: null, quote: null, source_url: null, source_type: null, verification: null } as const;
+    expect(factView(nf).kind).toBe('not_found');
+    expect(factView(undefined).kind).toBe('not_found');
+    expect(factView({ ...base, value: [], status: 'sourced' }).kind).toBe('not_found');
   });
 });

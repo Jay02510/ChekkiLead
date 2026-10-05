@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { EnrichedLead, FirebaseStatus } from '../types';
+import { EnrichedLead, FirebaseStatus, GroundedFact } from '../types';
 import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2, Pencil, RefreshCw, Loader2 } from 'lucide-react';
-import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification, buildContactUpdate, canReenrich } from '../lib/leadUi';
+import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification, buildContactUpdate, canReenrich, factView, type FactView } from '../lib/leadUi';
 
 interface LeadCardProps {
   lead: EnrichedLead;
@@ -30,6 +30,48 @@ function Field({ icon: Icon, label, children }: { icon: React.ElementType; label
         <dt className="text-xs text-zinc-400">{label}</dt>
         <dd className="text-sm text-zinc-100 break-words">{children}</dd>
       </div>
+    </div>
+  );
+}
+
+function FactValue({ view }: { view: FactView }) {
+  if (view.kind === 'not_found') return <span className="text-zinc-500">{view.text}</span>;
+  const quote = view.quote ? <span className="sr-only"> Quote: {view.quote}</span> : null;
+  if (view.kind === 'inferred') {
+    return <span className="text-amber-300" title={view.quote ? `Inferred from: "${view.quote}"` : undefined}>{view.text} <span className="text-xs">(inferred)</span>{quote}</span>;
+  }
+  return view.url ? (
+    <a href={view.url} target="_blank" rel="noreferrer" title={view.quote ? `"${view.quote}"` : undefined} className={`text-orange-300 hover:underline underline-offset-2 rounded ${focusRing}`}>
+      {view.text}{quote}
+    </a>
+  ) : <span className="text-zinc-100">{view.text}</span>;
+}
+
+// Where each fact came from, when the lead was enriched from sources.
+function FactsPanel({ lead }: { lead: EnrichedLead }) {
+  if (!lead.facts) return null;
+  const rows: [string, GroundedFact | undefined][] = [
+    ['Ages', lead.facts.age_range],
+    ['Students', lead.facts.approx_students],
+    ['Levels', lead.facts.cefr_levels],
+    ['Hook', lead.facts.hook],
+  ];
+  return (
+    <div className="px-5 sm:px-6 py-5 border-t border-white/10">
+      <h3 className="text-sm font-semibold text-zinc-100">From the academy's own pages</h3>
+      <dl className="mt-2 space-y-1.5 text-sm">
+        {rows.map(([label, fact]) => (
+          <div key={label} className="flex gap-3">
+            <dt className="w-20 shrink-0 text-xs text-zinc-400 pt-0.5">{label}</dt>
+            <dd className="min-w-0 break-words"><FactValue view={factView(fact)} /></dd>
+          </div>
+        ))}
+      </dl>
+      {lead.grounding && (
+        <p className="text-xs text-zinc-500 mt-3">
+          {lead.grounding.chunks_given} passages read{lead.grounding.verification_failures > 0 ? `, ${lead.grounding.verification_failures} unverifiable claim${lead.grounding.verification_failures > 1 ? 's' : ''} dropped` : ''}.
+        </p>
+      )}
     </div>
   );
 }
@@ -126,7 +168,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           <Building2 className="w-4 h-4" aria-hidden />
           {institutionLabel(lead.institution_type)}
         </span>
-        {lead.student_age_range && (
+        {lead.student_age_range && lead.student_age_range !== 'not found' && (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-300 text-sm font-medium">
             <Users className="w-4 h-4" aria-hidden />
             {lead.student_age_range}
@@ -197,7 +239,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
         </Field>
         <div className="md:col-span-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-zinc-400">
           <span>{lead.city}, {lead.district}</span>
-          {lead.approx_students && <span>{lead.approx_students} students</span>}
+          {lead.approx_students && lead.approx_students !== 'not found' && <span>{lead.approx_students} students</span>}
           <span className="font-mono text-xs self-center">{lead.naver_id}</span>
           {isSaved && onEditContact && !editing && (
             <button
@@ -224,6 +266,8 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           </div>
         )}
       </div>
+
+      <FactsPanel lead={lead} />
 
       {isSaved && (lead.last_contacted_at || onDelete) && (
         <div className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3 border-t border-white/10 text-xs text-zinc-400">

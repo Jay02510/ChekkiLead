@@ -6,10 +6,10 @@ import { isLikelyTarget } from './lib/leadFilter';
 import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { QueueView, DbSort } from './components/QueueView';
-import { isBlockedFromSending } from './lib/leadUi';
+import { isBlockedFromSending, factView } from './lib/leadUi';
 import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion } from 'firebase/firestore';
 import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
@@ -317,7 +317,9 @@ export default function App() {
   const handleEditContact = async (naver_id: string, updates: Record<string, string | null>): Promise<boolean> => {
     try {
       await authReady;
-      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), updates);
+      // Re-enrichment keeps whatever was typed in by hand.
+      const typed = ['email', 'student_age_range', 'approx_students'].filter(k => k in updates);
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), typed.length ? { ...updates, manual_fields: arrayUnion(...typed) } : updates);
       toast.success('Contact details saved');
       fetchSavedLeads();
       return true;
@@ -522,7 +524,16 @@ export default function App() {
         </div>
       );
     }
+    const hook = factView(lead.facts?.hook);
     return !emailDrafts[lead.naver_id] ? (
+      <div className="space-y-3">
+      {hook.kind !== 'not_found' && hook.quote && (
+        <blockquote className="px-4 py-3 rounded-xl border border-white/10 bg-white/[0.02] text-sm text-zinc-300 font-korean">
+          <p className="text-xs text-zinc-400 mb-1">Email opening will use ({hook.kind})</p>
+          “{hook.quote}”
+          {hook.url && <a href={hook.url} target="_blank" rel="noreferrer" className={`block mt-1 text-xs text-orange-300 hover:underline underline-offset-2 break-all rounded ${focusRing}`}>{hook.url}</a>}
+        </blockquote>
+      )}
       <button
         onClick={() => handleGenerateEmail(lead)}
         disabled={generatingEmails[lead.naver_id]}
@@ -534,6 +545,7 @@ export default function App() {
           <><Mail className="w-5 h-5 text-zinc-400" /> Generate Cold Email Draft</>
         )}
       </button>
+      </div>
     ) : (
       <EmailDraftCard
         draft={emailDrafts[lead.naver_id]}
