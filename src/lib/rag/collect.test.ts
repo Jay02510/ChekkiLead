@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   coreName, isRelevantPost, unsupportedReason, toMobileBlogUrl, normalizeUrl, classifyBlogPost,
-  extractEmails, chunk, fetchPage, searchNaverBlogs, collectForLead, classifyFetchError, sourceIdFor,
+  extractEmails, chunk, fetchPage, searchNaverBlogs, blogQueries, collectForLead, classifyFetchError, sourceIdFor,
   type CollectLead, type BlogPost, type FetchLike,
 } from './collect';
 
@@ -250,21 +250,31 @@ describe('searchNaverBlogs', () => {
     process.env.NAVER_CLIENT_ID = 'id';
     process.env.NAVER_CLIENT_SECRET = 'secret';
   });
-  it('queries with the quoted name and district, strips HTML, keeps the fields', async () => {
+  it('sends the query as given, strips HTML, keeps the fields', async () => {
     let url = '';
     const f = (async (u: any) => {
       url = String(u);
       return new Response(JSON.stringify({ items: [{ title: '<b>DYB</b>최선', description: '후기 &amp; 정보', link: 'https://blog.naver.com/a/1', bloggername: '<b>블로거</b>', bloggerlink: 'https://blog.naver.com/a', postdate: '20260102' }] }));
     }) as FetchLike;
-    const posts = await searchNaverBlogs('DYB최선어학원', '분당구', f);
-    expect(decodeURIComponent(url)).toContain('query="DYB최선어학원" 분당구');
+    const posts = await searchNaverBlogs('DYB최선 분당', f);
+    expect(decodeURIComponent(url)).toContain('query=DYB최선 분당&');
     expect(url).toContain('display=30');
     expect(url).toContain('sort=sim');
     expect(posts[0]).toMatchObject({ title: 'DYB최선', bloggername: '블로거', link: 'https://blog.naver.com/a/1', postdate: '20260102' });
   });
   it('throws on a non-ok response', async () => {
-    await expect(searchNaverBlogs('x', 'y', mockFetch({ openapi: html('', 500) }))).rejects.toThrow('500');
+    await expect(searchNaverBlogs('x', mockFetch({ openapi: html('', 500) }))).rejects.toThrow('500');
   });
+});
+
+describe('blogQueries', () => {
+  it('queries the everyday name plus the district stem, with the full name as fallback', () => {
+    expect(blogQueries({ institution_name_kr: '랜퍼스 키즈잉글리쉬 어학원 송파', district: '송파구' }))
+      .toEqual({ primary: '랜퍼스 키즈잉글리쉬 송파', fallback: '"랜퍼스 키즈잉글리쉬 어학원 송파" 송파구' });
+    expect(blogQueries({ institution_name_kr: '해커스어학원 강남역캠퍼스 제5별관', district: '강남구' }).primary).toBe('해커스 강남');
+  });
+  it('falls back to the full name when the cleaned name is empty', () =>
+    expect(blogQueries({ institution_name_kr: '영어유치원', district: '' }).primary).toBe('영어유치원'));
 });
 
 describe('collectForLead', () => {
@@ -309,6 +319,33 @@ describe('collectForLead', () => {
     const sameLink = 'https://academy.kr/';
     await collectForLead(lead({ website: sameLink, naver_raw: { ...lead().naver_raw!, link: sameLink } }), { fetchImpl: f, sleep: async () => {} });
     expect(fetches).toBe(1);
+  });
+  const searchOf = (items: any[]) => new Response(JSON.stringify({ items }));
+  const rel = (n: number) => ({ title: `DYB최선어학원 분당 후기 ${n}`, description: '', link: `https://blog.naver.com/mom/${n}`, bloggername: '엄마', bloggerlink: 'https://blog.naver.com/mom', postdate: '20260101' });
+  it('runs one query when the first finds 5 relevant posts', async () => {
+    const queries: string[] = [];
+    const f = (async (u: any) => { queries.push(decodeURIComponent(String(u))); return searchOf([1, 2, 3, 4, 5].map(rel)); }) as FetchLike;
+    const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: f, sleep: async () => {} });
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toContain('query=DYB최선 분당&');
+    expect(out.counts.blog_third_party).toBe(5);
+  });
+  it('runs a second query with the full name and merges results by URL', async () => {
+    const queries: string[] = [];
+    const f = (async (u: any) => {
+      queries.push(decodeURIComponent(String(u)));
+      return searchOf(queries.length === 1 ? [rel(1), rel(2)] : [rel(2), rel(3)]);
+    }) as FetchLike;
+    const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: f, sleep: async () => {} });
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).toContain('query="DYB최선어학원 분당 직영" 분당구&');
+    expect(out.sources.map(s => s.url).sort()).toEqual([1, 2, 3].map(n => `https://blog.naver.com/mom/${n}`));
+  });
+  it('keeps results from one query when the other fails', async () => {
+    let n = 0;
+    const f = (async () => (++n === 1 ? searchOf([rel(1)]) : new Response('', { status: 500 }))) as FetchLike;
+    const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: f, sleep: async () => {} });
+    expect(out.counts).toMatchObject({ blog_third_party: 1, errors: 0 });
   });
   it('records a blog-search failure instead of dropping it', async () => {
     const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: mockFetch({ 'openapi.naver.com': html('', 429) }), sleep: async () => {} });

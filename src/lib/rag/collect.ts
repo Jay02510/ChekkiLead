@@ -42,6 +42,7 @@ export interface Source {
 
 export type CollectLead = Pick<EnrichedLead, "institution_name_kr" | "district" | "address_full" | "website" | "naver_raw">;
 
+const MIN_RELEVANT_POSTS = 5;
 const MAX_PAGE_BYTES = 500 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
 // Keeps a source plus its chunks under Firestore's 1 MiB document limit (Korean is 3 bytes/char).
@@ -187,12 +188,23 @@ export function classifyBlogPost(post: BlogPost, lead: CollectLead): SourceType 
 
 // ---------- Naver blog search ----------
 
-export async function searchNaverBlogs(nameKr: string, district: string, fetchImpl: FetchLike = fetch): Promise<BlogPost[]> {
+// Real posts use the everyday name ("랜퍼스 키즈잉글리쉬 송파"), not the full
+// listing title, so that is the primary query. The quoted full name is the
+// fallback when the primary finds too little.
+export function blogQueries(lead: Pick<CollectLead, "institution_name_kr" | "district">): { primary: string; fallback: string } {
+  const full = stripHtml(lead.institution_name_kr);
+  const district = lead.district || "";
+  const stem = districtStemOf(district);
+  const tokens = nameTokens(full, district);
+  const primary = [tokens.length ? tokens.join(" ") : full, stem.length >= 2 ? stem : ""].filter(Boolean).join(" ");
+  return { primary, fallback: `"${full}" ${district}`.trim() };
+}
+
+export async function searchNaverBlogs(query: string, fetchImpl: FetchLike = fetch): Promise<BlogPost[]> {
   const clientId = process.env.NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("Naver API credentials not configured.");
 
-  const query = `"${nameKr}" ${district}`.trim();
   const res = await fetchImpl(`https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(query)}&display=30&sort=sim`, {
     headers: { "X-Naver-Client-Id": clientId, "X-Naver-Client-Secret": clientSecret },
   });
@@ -388,21 +400,42 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
     sources.set(id, { ...s, id, fetched_at: now(), chunks: s.chunks ?? chunk(s.text, id) });
   };
 
-  // 1. Blog posts about the academy — snippets only, one chunk each.
-  try {
-    const posts = await searchNaverBlogs(lead.institution_name_kr, lead.district, fetchImpl);
-    for (const post of posts) {
-      if (!isRelevantPost(post, lead)) continue;
-      const text = `${post.title}\n${post.description}`;
-      const id = sourceIdFor(normalizeUrl(post.link));
-      add({
-        url: post.link, type: classifyBlogPost(post, lead), title: post.title, postdate: post.postdate || null, via: "search",
-        status: "ok", error: null, text, emails: extractEmails(text),
-        chunks: [{ id: `${id}#0`, text }],
-      });
+  // 1. Blog posts about the academy — snippets only, one chunk each. At most
+  // two Naver calls: the everyday name, then the full name if that finds
+  // fewer than MIN_RELEVANT_POSTS relevant posts. Merged by URL.
+  const { primary, fallback } = blogQueries(lead);
+  const relevant = new Map<string, BlogPost>();
+  let attempted = 0;
+  let failed = 0;
+  let lastError = "";
+  for (const query of primary === fallback ? [primary] : [primary, fallback]) {
+    if (attempted > 0) {
+      if (relevant.size >= MIN_RELEVANT_POSTS) break;
+      await sleep(300);
     }
-  } catch (err: any) {
-    add({ url: `naver-blog-search:${lead.institution_name_kr}`, type: "blog_third_party", title: "Naver blog search", postdate: null, via: "search", status: "error", error: `blog_search_failed: ${err.message}`, text: "", emails: [] });
+    attempted++;
+    try {
+      for (const post of await searchNaverBlogs(query, fetchImpl)) {
+        const key = normalizeUrl(post.link);
+        if (!relevant.has(key) && isRelevantPost(post, lead)) relevant.set(key, post);
+      }
+    } catch (err: any) {
+      failed++;
+      lastError = err.message;
+    }
+  }
+  for (const post of relevant.values()) {
+    const text = `${post.title}\n${post.description}`;
+    const id = sourceIdFor(normalizeUrl(post.link));
+    add({
+      url: post.link, type: classifyBlogPost(post, lead), title: post.title, postdate: post.postdate || null, via: "search",
+      status: "ok", error: null, text, emails: extractEmails(text),
+      chunks: [{ id: `${id}#0`, text }],
+    });
+  }
+  // Only a failure of every query is recorded; one that succeeded still gave results.
+  if (failed === attempted) {
+    add({ url: `naver-blog-search:${lead.institution_name_kr}`, type: "blog_third_party", title: "Naver blog search", postdate: null, via: "search", status: "error", error: `blog_search_failed: ${lastError}`, text: "", emails: [] });
   }
   await sleep(300);
 
