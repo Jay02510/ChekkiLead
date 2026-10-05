@@ -1,0 +1,722 @@
+[
+  {
+    "naver_id": "hash_yhdpao",
+    "name_kr": "월드유치원",
+    "naver_link": "http://www.worldforkids.net/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>월드유치원</b>",
+      "link": "http://www.worldforkids.net/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 상암동 1679",
+      "roadAddress": "서울특별시 마포구 월드컵로42길 38",
+      "mapx": "1268811622",
+      "mapy": "375804098"
+    }
+  },
+  {
+    "naver_id": "hash_5mx9gm",
+    "name_kr": "리틀러너스",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>리틀러너스</b>",
+      "link": "",
+      "category": "교육,학문>유아학습",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 반포동 110-3",
+      "roadAddress": "서울특별시 서초구 서래로5길 61",
+      "mapx": "1269947533",
+      "mapy": "374978167"
+    }
+  },
+  {
+    "naver_id": "hash_15h44",
+    "name_kr": "리아유치원",
+    "naver_link": "https://lea1989.kidsnote.ac",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>리아유치원</b>",
+      "link": "https://lea1989.kidsnote.ac",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 방이동 89",
+      "roadAddress": "서울특별시 송파구 양재대로 1218",
+      "mapx": "1271352278",
+      "mapy": "375133409"
+    }
+  },
+  {
+    "naver_id": "hash_87av7z",
+    "name_kr": "에스오티어학원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "에스오티어학원",
+      "link": "",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 반포동 50-3",
+      "roadAddress": "서울특별시 서초구 서초중앙로31길 14-4",
+      "mapx": "1270109571",
+      "mapy": "374999328"
+    }
+  },
+  {
+    "naver_id": "hash_wr3hnc",
+    "name_kr": "나교수어학원",
+    "naver_link": "https://t.aca2000.co.kr/onlineReserve?t=NzQ1NDVeXl4y",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>나교수어학원</b>",
+      "link": "https://t.aca2000.co.kr/onlineReserve?t=NzQ1NDVeXl4y",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 노고산동 40-1 적암빌딩 5층",
+      "roadAddress": "서울특별시 마포구 신촌로 128 적암빌딩 5층",
+      "mapx": "1269399098",
+      "mapy": "375557311"
+    }
+  },
+  {
+    "naver_id": "hash_stsyfz",
+    "name_kr": "삼성유치원",
+    "naver_link": "http://www.samsungkinder.com",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>삼성유치원</b>",
+      "link": "http://www.samsungkinder.com",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 이매동 100 삼성유치원",
+      "roadAddress": "경기도 성남시 분당구 양현로 220 삼성유치원",
+      "mapx": "1271266326",
+      "mapy": "374023636"
+    }
+  },
+  {
+    "naver_id": "hash_1u6cwwe",
+    "name_kr": "강남유정유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>강남유정유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 수서동 758",
+      "roadAddress": "서울특별시 강남구 광평로34길 17",
+      "mapx": "1270949425",
+      "mapy": "374830084"
+    }
+  },
+  {
+    "naver_id": "hash_mc06zk",
+    "name_kr": "서울어진유치원",
+    "naver_link": "http://서울어진유치원.kr",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>서울어진유치원</b>",
+      "link": "http://서울어진유치원.kr",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 우면동 731",
+      "roadAddress": "서울특별시 서초구 태봉로2길 21",
+      "mapx": "1270249555",
+      "mapy": "374617969"
+    }
+  },
+  {
+    "naver_id": "hash_tcoqj4",
+    "name_kr": "리안유치원",
+    "naver_link": "https://cafe.naver.com/riankindergarten",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>리안유치원</b>",
+      "link": "https://cafe.naver.com/riankindergarten",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 정자동 102-3 리안유치원",
+      "roadAddress": "경기도 성남시 분당구 백현로 206-2 리안유치원",
+      "mapx": "1271170533",
+      "mapy": "373672902"
+    }
+  },
+  {
+    "naver_id": "hash_1bpzaai",
+    "name_kr": "즐거운 유치원",
+    "naver_link": "https://blog.naver.com/joykindergarten",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>즐거운 유치원</b>",
+      "link": "https://blog.naver.com/joykindergarten",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 금곡동 141 즐거운유치원 (청솔마을)",
+      "roadAddress": "경기도 성남시 분당구 미금로 215 즐거운유치원 (청솔마을)",
+      "mapx": "1271114646",
+      "mapy": "373514972"
+    }
+  },
+  {
+    "naver_id": "hash_1xengsu",
+    "name_kr": "하나유치원",
+    "naver_link": "https://blog.naver.com/hanakids20",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>하나유치원</b>",
+      "link": "https://blog.naver.com/hanakids20",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 잠원동 56-3 하나유치원",
+      "roadAddress": "서울특별시 서초구 잠원로8길 13 하나유치원",
+      "mapx": "1270103262",
+      "mapy": "375151908"
+    }
+  },
+  {
+    "naver_id": "hash_f9sg2h",
+    "name_kr": "오즈의마법사유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>오즈의마법사유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 강남구 세곡동 518",
+      "roadAddress": "서울특별시 강남구 헌릉로618길 14",
+      "mapx": "1271061969",
+      "mapy": "374639661"
+    }
+  },
+  {
+    "naver_id": "hash_7axsfb",
+    "name_kr": "씨드아카데미",
+    "naver_link": "https://blog.naver.com/bingo4726",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "씨드아카데미",
+      "link": "https://blog.naver.com/bingo4726",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 우면동 66-1 704호",
+      "roadAddress": "서울특별시 서초구 바우뫼로7길 16 704호",
+      "mapx": "1270251114",
+      "mapy": "374710842"
+    }
+  },
+  {
+    "naver_id": "hash_219zpo",
+    "name_kr": "뽀뽀뽀유치원",
+    "naver_link": "https://blog.naver.com/pppkinder",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>뽀뽀뽀유치원</b>",
+      "link": "https://blog.naver.com/pppkinder",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 야탑동 207-2 뽀뽀뽀유치원",
+      "roadAddress": "경기도 성남시 분당구 양현로 515 뽀뽀뽀유치원",
+      "mapx": "1271388537",
+      "mapy": "374149933"
+    }
+  },
+  {
+    "naver_id": "hash_1s5pb7e",
+    "name_kr": "차차영어교습소",
+    "naver_link": "https://blog.naver.com/cha2_eng",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "차차영어교습소",
+      "link": "https://blog.naver.com/cha2_eng",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 반포동 70-1 상가 204호",
+      "roadAddress": "서울특별시 서초구 사평대로28길 31 상가 204호",
+      "mapx": "1270000384",
+      "mapy": "374999497"
+    }
+  },
+  {
+    "naver_id": "hash_kg2ntk",
+    "name_kr": "은정유치원",
+    "naver_link": "https://www.instagram.com/ejk_school/?igsh=cGk1dThrMTI3bGYw",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>은정유치원</b>",
+      "link": "https://www.instagram.com/ejk_school/?igsh=cGk1dThrMTI3bGYw",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 야탑동 335",
+      "roadAddress": "경기도 성남시 분당구 장미로 101",
+      "mapx": "1271312434",
+      "mapy": "374149795"
+    }
+  },
+  {
+    "naver_id": "hash_12cctea",
+    "name_kr": "여나유치원",
+    "naver_link": "http://www.yeonakindergarten.com",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>여나유치원</b>",
+      "link": "http://www.yeonakindergarten.com",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 서초동 1685 여나유치원",
+      "roadAddress": "서울특별시 서초구 서초중앙로 200 여나유치원",
+      "mapx": "1270140001",
+      "mapy": "374996908"
+    }
+  },
+  {
+    "naver_id": "hash_1mlvzat",
+    "name_kr": "마포대진유치원",
+    "naver_link": "",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>마포대진유치원</b>",
+      "link": "",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 마포구 연남동 493-6 마포대진유치원",
+      "roadAddress": "서울특별시 마포구 성미산로 110 마포대진유치원",
+      "mapx": "1269193500",
+      "mapy": "375619167"
+    }
+  },
+  {
+    "naver_id": "hash_7v8fmr",
+    "name_kr": "서울청계숲유치원",
+    "naver_link": "http://www.서울청계숲유치원.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>서울청계숲유치원</b>",
+      "link": "http://www.서울청계숲유치원.kr/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 서초구 신원동 247",
+      "roadAddress": "",
+      "mapx": "1270576904",
+      "mapy": "374478184"
+    }
+  },
+  {
+    "naver_id": "hash_1yuyp8l",
+    "name_kr": "서울솔방울유치원",
+    "naver_link": "http://www.서울솔방울유치원.kr",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>서울솔방울유치원</b>",
+      "link": "http://www.서울솔방울유치원.kr",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 송파동 162-3",
+      "roadAddress": "서울특별시 송파구 오금로24길 25",
+      "mapx": "1271174605",
+      "mapy": "375048404"
+    }
+  },
+  {
+    "naver_id": "hash_4x6u62",
+    "name_kr": "햇빛유치원",
+    "naver_link": "http://www.hatvitkids.co.kr/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>햇빛유치원</b>",
+      "link": "http://www.hatvitkids.co.kr/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 신천동 20-52 햇빛유치원",
+      "roadAddress": "서울특별시 송파구 올림픽로 419 햇빛유치원",
+      "mapx": "1271140624",
+      "mapy": "375204416"
+    }
+  },
+  {
+    "naver_id": "hash_f78yrr",
+    "name_kr": "랜퍼스 키즈잉글리쉬 어학원 송파",
+    "naver_link": "https://www.lanpus.com/main/main.php",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>랜퍼스 키즈잉글리쉬 어학원 송파</b>",
+      "link": "https://www.lanpus.com/main/main.php",
+      "category": "어학교육>영어교육",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 삼전동 9-1 선원빌딩",
+      "roadAddress": "서울특별시 송파구 백제고분로 209 선원빌딩",
+      "mapx": "1270900102",
+      "mapy": "375041041"
+    }
+  },
+  {
+    "naver_id": "hash_10kgdb",
+    "name_kr": "제일무궁화유치원",
+    "naver_link": "http://www.jeilkids.com/",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>제일무궁화유치원</b>",
+      "link": "http://www.jeilkids.com/",
+      "category": "교육,학문>유치원",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 송파구 가락2동 193-9",
+      "roadAddress": "서울특별시 송파구 동남로16길 3",
+      "mapx": "1271309961",
+      "mapy": "374947060"
+    }
+  },
+  {
+    "naver_id": "hash_6pqg8a",
+    "name_kr": "아름다운유치원",
+    "naver_link": "https://www.instagram.com/beautykids_1992/?__pwa=1",
+    "checked": false,
+    "gold": {
+      "age_min": null,
+      "age_max": null,
+      "cefr_levels": null,
+      "email": null,
+      "hook_fact": null,
+      "sources": {
+        "age": [],
+        "levels": [],
+        "email": [],
+        "hook": []
+      }
+    },
+    "naver_raw": {
+      "title": "<b>아름다운유치원</b>",
+      "link": "https://www.instagram.com/beautykids_1992/?__pwa=1",
+      "category": "교육,학문>사인사립유치원",
+      "description": "",
+      "telephone": "",
+      "address": "경기도 성남시 분당구 수내동 74",
+      "roadAddress": "경기도 성남시 분당구 돌마로356번길 31",
+      "mapx": "1271254561",
+      "mapy": "373676613"
+    }
+  }
+]

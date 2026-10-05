@@ -1,10 +1,11 @@
-// Writes eval/gold.json: 30 random saved target leads (with naver_raw) and
+// Writes eval/gold.json: up to 30 random saved target leads (with naver_raw) and
 // blank answer fields to fill in by hand. Run once, after backfill-naver-raw
 // and flag-non-targets. Only leads that pass isLikelyTarget and aren't
 // flagged non_target are sampled. Answers are never pre-filled — gold must
 // be a human's reading of the sources, not another model's.
 //
-//   npx tsx eval/init-gold.ts
+//   npx tsx eval/init-gold.ts            # needs 30 targets
+//   npx tsx eval/init-gold.ts --size 24  # smaller set when fewer targets exist
 //
 // Refuses to overwrite an existing gold.json — that file holds hours of
 // hand-checked answers.
@@ -18,7 +19,12 @@ import { isLikelyTarget } from "../src/lib/leadFilter";
 import type { EnrichedLead } from "../src/types";
 
 const GOLD_PATH = "eval/gold.json";
-const SAMPLE_SIZE = 30;
+const sizeArg = process.argv.indexOf("--size");
+const SAMPLE_SIZE = sizeArg > -1 ? Number(process.argv[sizeArg + 1]) : 30;
+if (!Number.isInteger(SAMPLE_SIZE) || SAMPLE_SIZE < 1) {
+  console.error("--size needs a positive whole number.");
+  process.exit(1);
+}
 
 async function main() {
   if (existsSync(GOLD_PATH)) {
