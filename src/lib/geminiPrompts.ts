@@ -1,7 +1,12 @@
 import { Type } from "@google/genai";
 import { PRODUCT, CHEKKI_SCHOOLS, FOUNDER_BACKGROUND, AI_READINESS_CHECK_MINUTES, AI_READINESS_CHECK_EN, AI_READINESS_CHECK_KR } from "./chekkiFacts.js";
 
-export const SYSTEM_PROMPT = `You are a B2B lead enrichment agent for Chekki AI, a Korean EdTech brand.
+// FROZEN: the control for the grounded-enrichment comparison. Changing the
+// text or the schema below changes every baseline score, so
+// src/lib/geminiPrompts.test.ts fails on any edit. If a change is deliberate,
+// update the hashes there and say so in the commit — old results no longer
+// compare.
+export const BASELINE_SYSTEM_PROMPT = `You are a B2B lead enrichment agent for Chekki AI, a Korean EdTech brand.
 
 ## CONTEXT
 You receive RAW data from the Naver Local Search API about a Korean English 
@@ -178,7 +183,7 @@ Return ONLY valid JSON matching the schema. No preamble, no markdown. Raw JSON o
 - DO NOT ask for a call, meeting, or demo — the only ask is the free diagnostic.
 - DO NOT be aggressive or salesy.`;
 
-export const ENRICH_SCHEMA = {
+export const BASELINE_ENRICH_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     institution_name_en: { type: Type.STRING, description: "Clean English name, no HTML tags" },
@@ -261,3 +266,7 @@ export const EMAIL_SCHEMA = {
     "institution_type_targeted"
   ]
 };
+
+// Existing callers use the baseline pair under its original names.
+export const SYSTEM_PROMPT = BASELINE_SYSTEM_PROMPT;
+export const ENRICH_SCHEMA = BASELINE_ENRICH_SCHEMA;

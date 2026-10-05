@@ -105,7 +105,10 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
   };
 }
 
-export async function enrichLeadServer(item: NaverSearchResult): Promise<EnrichedLead> {
+// Reports each Gemini call's token usage; the eval uses it for cost per lead.
+export type UsageSink = (usage: { input_tokens: number; output_tokens: number }) => void;
+
+export async function enrichLeadServer(item: NaverSearchResult, onUsage?: UsageSink): Promise<EnrichedLead> {
   if (!item) throw Object.assign(new Error("item is required."), { status: 400 });
 
   const ai = genaiClient();
@@ -127,6 +130,7 @@ export async function enrichLeadServer(item: NaverSearchResult): Promise<Enriche
         },
       }));
 
+      onUsage?.({ input_tokens: response.usageMetadata?.promptTokenCount ?? 0, output_tokens: response.usageMetadata?.candidatesTokenCount ?? 0 });
       const text = response.text;
       if (!text) throw new Error("No response from Gemini.");
       const candidate = applyNaverTruth(item, JSON.parse(text));

@@ -64,6 +64,11 @@ export interface CandidateEmail {
   sourceType: 'blog_own' | 'blog_third_party' | 'website';
 }
 
+// How a lead is enriched. baseline = the frozen original prompt (the control);
+// the grounded modes answer only from collected source chunks.
+export type EnrichMode = 'baseline' | 'grounded_full' | 'grounded_retrieval';
+export type GroundedMode = Exclude<EnrichMode, 'baseline'>;
+
 export interface EmailDraft {
   subject_line_kr: string;
   subject_line_en: string;

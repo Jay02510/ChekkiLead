@@ -2,7 +2,8 @@
 // hand-checked answers in eval/gold.json. To score another version, check
 // out that commit and run this again — the result file records the commit.
 //
-//   npm run eval
+//   npm run eval                      # baseline, the frozen original prompt
+//   npm run eval -- --mode <mode>     # baseline | grounded_full | grounded_retrieval
 import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
@@ -11,7 +12,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { enrichLeadServer } from "../src/lib/serverActions";
-import type { EnrichedLead, NaverSearchResult } from "../src/types";
+import type { EnrichedLead, EnrichMode, NaverSearchResult } from "../src/types";
 import { parseAgeRange, ageIoU, jaccard, sameEmail, isNotFound, claimsValue, ClaimField } from "./score";
 
 interface GoldEntry {
@@ -57,6 +58,14 @@ Return JSON only.`,
   return JSON.parse(response.text || "{}").verdict ?? "unsupported";
 }
 
+const MODES: EnrichMode[] = ["baseline", "grounded_full", "grounded_retrieval"];
+const modeArg = process.argv.indexOf("--mode");
+const MODE = (modeArg > -1 ? process.argv[modeArg + 1] : "baseline") as EnrichMode;
+if (!MODES.includes(MODE)) {
+  console.error(`--mode must be one of ${MODES.join(", ")}.`);
+  process.exit(1);
+}
+
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
 const pct = (x: number) => (Number.isNaN(x) ? "n/a" : `${(x * 100).toFixed(1)}%`);
 
@@ -98,6 +107,7 @@ async function main() {
     let out: EnrichedLead | null = null;
     let error: string | undefined;
     try {
+      if (MODE !== "baseline") throw new Error(`mode ${MODE} is not wired up yet`);
       out = await enrichLeadServer(entry.naver_raw);
     } catch (err) {
       failed++;
@@ -172,11 +182,11 @@ async function main() {
   const dirty = execSync("git status --porcelain").toString().trim() ? "-dirty" : "";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   mkdirSync("eval/results", { recursive: true });
-  const outPath = `eval/results/${sha}${dirty}-${stamp}.json`;
-  writeFileSync(outPath, JSON.stringify({ commit: `${sha}${dirty}`, summary, perLead }, null, 2) + "\n");
+  const outPath = `eval/results/${MODE}-${sha}${dirty}-${stamp}.json`;
+  writeFileSync(outPath, JSON.stringify({ mode: MODE, commit: `${sha}${dirty}`, summary, perLead }, null, 2) + "\n");
 
   console.log(`
-Pipeline @ ${sha}${dirty} — ${checked.length} leads, ${failed} failed
+Pipeline ${MODE} @ ${sha}${dirty} — ${checked.length} leads, ${failed} failed
   Age range (IoU)         ${pct(summary.age_range_iou)}  (n=${ageScores.length})
   CEFR levels (Jaccard)   ${pct(summary.cefr_levels_jaccard)}  (n=${levelScores.length})
   Email exact match       ${pct(summary.email_exact_match)}  (n=${emailHits.length}, leads with a real email)
