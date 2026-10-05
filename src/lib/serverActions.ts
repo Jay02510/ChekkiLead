@@ -5,6 +5,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA } from "./geminiPrompts.js";
 import { getNaverId } from "./naverId.js";
+import { englishSignal } from "./leadFilter.js";
 import { EnrichedLeadSchema, EmailDraftSchema } from "./validation.js";
 import type { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
@@ -77,6 +78,10 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
     firebase_status: 'not_contacted',
     // Kept so any lead can be re-run through a future pipeline version.
     naver_raw: item,
+    // Whether English is named in the listing is a fact about the input, so
+    // code sets it. "none" never reaches here (the callers filter it out).
+    english_signal: englishSignal(item) === "confirmed" ? "confirmed" : "unsure",
+    needs_review: englishSignal(item) !== "confirmed",
   };
 }
 
@@ -94,7 +99,7 @@ export async function enrichLeadServer(item: NaverSearchResult): Promise<Enriche
       const naverId = getNaverId(item);
       const response = await withRetry(() => ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: JSON.stringify({ ...item, naver_id: naverId }),
+        contents: JSON.stringify({ ...item, naver_id: naverId, english_signal: englishSignal(item) }),
         config: {
           systemInstruction: SYSTEM_PROMPT,
           responseMimeType: "application/json",

@@ -29,6 +29,7 @@ interface QueueViewProps {
   onBulkDelete: () => void;
   onStatusChange: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail: (naver_id: string) => void;
+  onReview: (naver_id: string, decision: 'confirm' | 'reject') => void;
   onEditContact: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
   onDelete: (naver_id: string) => void;
   onSendAndNext: (lead: EnrichedLead) => void;
@@ -39,6 +40,7 @@ const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible
 
 const FILTERS: { value: string; label: string }[] = [
   { value: 'not_contacted', label: 'New' },
+  { value: 'review', label: 'Review' },
   { value: 'pending', label: 'Pending' },
   { value: 'sent', label: 'Sent' },
   { value: 'replied', label: 'Replied' },
@@ -236,6 +238,7 @@ export function QueueView(p: QueueViewProps) {
                 onStatusChange={p.onStatusChange}
                 onVerifyEmail={p.onVerifyEmail}
                 onEditContact={p.onEditContact}
+                onReview={p.onReview}
                 onDelete={p.onDelete}
               />
               {p.renderDraft(selected)}

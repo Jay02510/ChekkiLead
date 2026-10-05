@@ -97,4 +97,15 @@ describe('applyNaverTruth', () => {
   it('keeps the raw Naver item so the lead can be re-enriched later', () => {
     expect(corrected.naver_raw).toEqual(naverItem);
   });
+
+  it('sets the English signal in code, and sends an unconfirmed lead to review', () => {
+    expect(corrected.english_signal).toBe('unsure');
+    expect(corrected.needs_review).toBe(true);
+  });
+
+  it('does not review a lead whose listing names English, whatever the model says', () => {
+    const named = applyNaverTruth({ ...naverItem, title: 'Test 영어학원' }, { ...modelTampered, needs_review: true, english_signal: 'unsure' });
+    expect(named.english_signal).toBe('confirmed');
+    expect(named.needs_review).toBe(false);
+  });
 });

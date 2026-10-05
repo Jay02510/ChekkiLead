@@ -80,6 +80,17 @@ Given the raw Naver data, you must:
    - Website found = email likely accurate
    - No website = phone outreach may be better than email
 
+## ENGLISH SIGNAL
+The input includes english_signal, set by code from the Naver listing:
+- "confirmed": the listing itself names English (name, category or description).
+- "unsure": the listing does not. The school may still teach English, but
+  this data cannot say.
+Never state or imply that an "unsure" school teaches English. For "unsure"
+leads: agent_notes must start with "English programme unconfirmed — check the
+school's own pages.", fit_reason must not claim an English programme,
+outreach_priority is at most 3, and personalization_hook must not mention
+English. Do not change english_signal; it is not part of your output.
+
 ## CRITICAL RULES
 - Strip ALL HTML from Naver titles: <b>애플</b>영어학원 → 애플영어학원
 - Never invent phone numbers — use exactly what Naver provides

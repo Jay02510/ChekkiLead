@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLikelyTarget } from './leadFilter';
+import { isLikelyTarget, englishSignal } from './leadFilter';
 
 // The 30 category/title pairs of the first (untargeted) gold sample, with
 // the verdict the filter should give each. Kindergartens are targets.
@@ -56,5 +56,30 @@ describe('isLikelyTarget rules', () => {
   it('rejects TOEFL / TEPS categories', () => {
     expect(isLikelyTarget({ category: '어학교육>토플', title: 'x어학원' })).toBe(false);
     expect(isLikelyTarget({ category: '어학교육>TEPS', title: 'x어학원' })).toBe(false);
+  });
+});
+
+describe('englishSignal', () => {
+  it('is confirmed when the name, category or description names English', () => {
+    expect(englishSignal({ category: '교육,학문>유치원', title: '<b>리틀팍스 영어유치원</b>' })).toBe('confirmed');
+    expect(englishSignal({ category: '어학교육>영어교육', title: '나교수어학원' })).toBe('confirmed');
+    expect(englishSignal({ category: '교육,학문>유치원', title: '하나유치원', description: '원어민 교사 상주' })).toBe('confirmed');
+    expect(englishSignal({ category: '어학교육', title: '랜퍼스 키즈잉글리쉬 어학원' })).toBe('confirmed');
+    expect(englishSignal({ category: '교육,학문', title: 'Seed English Academy' })).toBe('confirmed');
+  });
+  it('is unsure when the listing does not say', () => {
+    expect(englishSignal({ category: '교육,학문>유치원', title: '월드유치원' })).toBe('unsure');
+    expect(englishSignal({ category: '교육,학문>유아학습', title: '리틀러너스' })).toBe('unsure');
+    expect(englishSignal({ category: '어학교육', title: '씨드아카데미' })).toBe('unsure');
+  });
+  it('is none for another subject or language', () => {
+    expect(englishSignal({ category: '교육,학문>외국어학원', title: '새봄 중국어학원' })).toBe('none');
+    expect(englishSignal({ category: '교육,학문>학원', title: '수학의힘' })).toBe('none');
+  });
+  it('lets English win over another subject in the same listing', () =>
+    expect(englishSignal({ category: '교육,학문>학원', title: '수학영어학원' })).toBe('confirmed'));
+  it('rejects a none listing as a target and keeps an unsure one', () => {
+    expect(isLikelyTarget({ category: '교육,학문>외국어학원', title: '새봄 중국어학원' })).toBe(false);
+    expect(isLikelyTarget({ category: '교육,학문>유치원', title: '월드유치원' })).toBe(true);
   });
 });

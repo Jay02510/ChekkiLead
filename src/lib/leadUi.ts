@@ -42,13 +42,14 @@ export const needsVerification = (lead: EnrichedLead) =>
 // estimated emails only once a human verified them. Opt-outs are locked.
 export const sendBlockReason = (lead: EnrichedLead): string | null => {
   if (lead.firebase_status === 'opted_out') return 'This lead opted out.';
+  if (lead.needs_review) return 'Confirm this school teaches English first.';
   if (lead.email_confidence === 'unknown') return 'No email address found for this lead.';
   if (needsVerification(lead)) return 'Verify the email address first.';
   return null;
 };
 
 export const isBlockedFromSending = (lead: EnrichedLead) =>
-  lead.email_confidence === 'unknown' || needsVerification(lead);
+  !!lead.needs_review || lead.email_confidence === 'unknown' || needsVerification(lead);
 
 export interface ContactEdit {
   email: string;

@@ -12,6 +12,7 @@ interface LeadCardProps {
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail?: (naver_id: string) => void;
   onDelete?: (naver_id: string) => void;
+  onReview?: (naver_id: string, decision: 'confirm' | 'reject') => void;
   // Saves hand-entered contact details; resolves true when the save worked.
   onEditContact?: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
   key?: string | number;
@@ -31,7 +32,7 @@ function Field({ icon: Icon, label, children }: { icon: React.ElementType; label
   );
 }
 
-export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact }: LeadCardProps) {
+export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact, onReview }: LeadCardProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ email: '', phone: '', website: '' });
   const [formError, setFormError] = useState('');
@@ -89,6 +90,33 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           )}
         </div>
       </div>
+
+      {isSaved && lead.needs_review && (
+        <div className="mx-5 sm:mx-6 mb-5 p-4 rounded-lg border border-amber-500/25 bg-amber-500/10">
+          <p className="text-sm font-semibold text-amber-300">English not confirmed</p>
+          <p className="text-sm text-zinc-300 mt-1">
+            The Naver listing doesn't say this school teaches English. Check its own site, blog or cafe, then decide.
+          </p>
+          {onReview && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => onReview(lead.naver_id, 'confirm')}
+                className={`px-4 py-1.5 text-sm font-semibold text-black bg-brand-orange hover:bg-orange-400 rounded-full ${focusRing}`}
+              >
+                Teaches English
+              </button>
+              <button
+                type="button"
+                onClick={() => onReview(lead.naver_id, 'reject')}
+                className={`px-4 py-1.5 text-sm font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg ${focusRing}`}
+              >
+                Not a fit
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 px-5 sm:px-6 pb-5">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-300 text-sm font-medium">

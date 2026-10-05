@@ -45,6 +45,10 @@ export interface EnrichedLead {
   deleted?: boolean;
   naver_raw?: NaverSearchResult;
   non_target?: boolean;
+  // Set in code from the Naver listing (englishSignal), never by the model.
+  // 'unsure' leads wait in the Review queue until a person confirms English.
+  english_signal?: 'confirmed' | 'unsure';
+  needs_review?: boolean;
   // Phase 1 source collection (written server-side by scripts/collect-sources.ts).
   sources_collected_at?: string;
   source_counts?: { blog_own: number; blog_third_party: number; website: number; errors: number };

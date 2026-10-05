@@ -328,6 +328,23 @@ export default function App() {
     }
   };
 
+  // Manual review of a lead whose listing didn't name English: confirm it
+  // teaches English, or mark it a non-target (kept so sweeps don't re-add it).
+  const handleReviewLead = async (naver_id: string, decision: 'confirm' | 'reject') => {
+    const updates = decision === 'confirm'
+      ? { needs_review: false, english_signal: 'confirmed' }
+      : { needs_review: false, non_target: true };
+    try {
+      await authReady;
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), updates);
+      toast.success(decision === 'confirm' ? 'Marked as teaching English' : 'Marked as not a fit');
+      fetchSavedLeads();
+    } catch (err) {
+      console.error("Failed to save review in Firebase", err);
+      toast.error('Failed to save review');
+    }
+  };
+
   const handleDeleteLead = async (naver_id: string) => {
     // Soft delete only — a hard delete removes the doc from the dedupe set,
     // so the next cron sweep or Bulk Sweep could re-add and re-contact an
@@ -441,11 +458,17 @@ export default function App() {
   const visibleLeads = savedLeads.filter(l => !l.deleted && (showNonTargets || !l.non_target));
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: visibleLeads.length };
-    visibleLeads.forEach(l => { c[l.firebase_status] = (c[l.firebase_status] || 0) + 1; });
+    // Leads waiting on an English check live in Review, not in the status queues.
+    visibleLeads.forEach(l => {
+      const key = l.needs_review ? 'review' : l.firebase_status;
+      c[key] = (c[key] || 0) + 1;
+    });
     return c;
   }, [savedLeads]);
   const q = listQuery.trim().toLowerCase();
-  const filteredLeads = [...(dbFilter === 'all' ? visibleLeads : visibleLeads.filter(l => l.firebase_status === dbFilter))]
+  const filteredLeads = [...(dbFilter === 'all' ? visibleLeads
+      : dbFilter === 'review' ? visibleLeads.filter(l => l.needs_review)
+      : visibleLeads.filter(l => !l.needs_review && l.firebase_status === dbFilter))]
     .filter(l => !q || [l.institution_name_en, l.institution_name_kr, l.district, l.city].some(f => (f || '').toLowerCase().includes(q)))
     .sort((a, b) => {
       if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
@@ -577,6 +600,7 @@ export default function App() {
           onStatusChange={handleStatusChange}
           onVerifyEmail={handleVerifyEmail}
           onEditContact={handleEditContact}
+          onReview={handleReviewLead}
           onDelete={handleDeleteLead}
           onSendAndNext={handleSendAndNext}
           renderDraft={renderEmailDraftSection}

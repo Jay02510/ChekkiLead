@@ -50,6 +50,8 @@ export const EnrichedLeadSchema = z.object({
   sequence_step: z.number().optional(),
   deleted: z.boolean().optional(),
   non_target: z.boolean().optional(),
+  english_signal: z.enum(["confirmed", "unsure"]).optional(),
+  needs_review: z.boolean().optional(),
   naver_raw: NaverItemSchema.optional(),
 });
 

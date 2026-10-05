@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildContactUpdate } from './leadUi';
+import { buildContactUpdate, sendBlockReason, isBlockedFromSending } from './leadUi';
+import type { EnrichedLead } from '../types';
 
 const lead = { email: 'guess@naver.com', phone: '', website: null as string | null };
 const edit = { email: 'guess@naver.com', phone: '', website: '' };
@@ -23,4 +24,16 @@ describe('buildContactUpdate', () => {
     }));
   it('stores a cleared website as null', () =>
     expect(buildContactUpdate({ ...lead, website: 'https://a.kr' }, { ...edit, website: '' })).toEqual({ updates: { website: null } }));
+});
+
+describe('send blocking for leads in manual review', () => {
+  const base = { firebase_status: 'not_contacted', email_confidence: 'scraped', email_verification: 'verified' } as EnrichedLead;
+  it('blocks a lead that needs an English check', () => {
+    expect(isBlockedFromSending({ ...base, needs_review: true })).toBe(true);
+    expect(sendBlockReason({ ...base, needs_review: true })).toBe('Confirm this school teaches English first.');
+  });
+  it('does not block a reviewed lead with a good email', () => {
+    expect(isBlockedFromSending({ ...base, needs_review: false })).toBe(false);
+    expect(sendBlockReason(base)).toBeNull();
+  });
 });
