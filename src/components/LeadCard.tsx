@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { EnrichedLead, FirebaseStatus } from '../types';
-import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2, Pencil } from 'lucide-react';
-import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification, buildContactUpdate } from '../lib/leadUi';
+import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2, Pencil, RefreshCw, Loader2 } from 'lucide-react';
+import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification, buildContactUpdate, canReenrich } from '../lib/leadUi';
 
 interface LeadCardProps {
   lead: EnrichedLead;
@@ -12,6 +12,8 @@ interface LeadCardProps {
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail?: (naver_id: string) => void;
   onDelete?: (naver_id: string) => void;
+  // Collects sources if stale, then enriches from them (server-side).
+  onReenrich?: (naver_id: string) => Promise<void>;
   onReview?: (naver_id: string, decision: 'confirm' | 'reject') => void;
   // Saves hand-entered contact details; resolves true when the save worked.
   onEditContact?: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
@@ -32,7 +34,8 @@ function Field({ icon: Icon, label, children }: { icon: React.ElementType; label
   );
 }
 
-export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact, onReview }: LeadCardProps) {
+export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact, onReview, onReenrich }: LeadCardProps) {
+  const [reenriching, setReenriching] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ email: '', phone: '', website: '', student_age_range: '', approx_students: '' });
   const [formError, setFormError] = useState('');
@@ -229,6 +232,18 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
               ? `Last sent ${new Date(lead.last_contacted_at).toLocaleDateString()} (${Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / 86400000)}d ago)`
               : ''}
           </span>
+          {onReenrich && canReenrich(lead) && (
+            <button
+              type="button"
+              disabled={reenriching}
+              onClick={async () => { setReenriching(true); try { await onReenrich(lead.naver_id); } finally { setReenriching(false); } }}
+              className={`inline-flex items-center gap-1.5 font-medium text-orange-300 hover:text-orange-200 disabled:opacity-50 rounded ${focusRing}`}
+              title="Read this academy's own blog and website, then fill in what they actually say"
+            >
+              {reenriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <RefreshCw className="w-3.5 h-3.5" aria-hidden />}
+              {reenriching ? 'Reading sources…' : 'Re-enrich with sources'}
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={() => onDelete(lead.naver_id)}

@@ -22,6 +22,12 @@ import { isLikelyTarget } from "../src/lib/leadFilter.js";
 // the full matrix over ~10 days rather than attempting a bigger scope
 // per run.
 //
+// TODO: the cron stays on baseline enrichment. Moving it to grounded mode is
+// a separate step: collecting sources plus enriching won't fit in one 60s
+// invocation, so it needs to queue collection and enrichment as their own
+// jobs, not block on them here (see scripts/enrich-grounded.ts for the batch
+// path).
+//
 // ponytail: query list is a fixed constant, not a Firestore-backed
 // settings UI — edit this array and redeploy to change targets. Add a
 // settings doc/UI when that friction is actually felt, not before.

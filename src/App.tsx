@@ -345,6 +345,25 @@ export default function App() {
     }
   };
 
+  // Server-side: collects sources if stale, enriches from them, saves the lead.
+  const handleReenrich = async (naver_id: string) => {
+    try {
+      await authReady;
+      const res = await fetch('/api/enrich-grounded', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ naver_id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Re-enrich failed');
+      toast.success(data.collected ? 'Read new sources and updated the lead' : 'Updated the lead from its sources');
+      fetchSavedLeads();
+    } catch (err: any) {
+      console.error("Failed to re-enrich lead", err);
+      toast.error(err.message || 'Re-enrich failed');
+    }
+  };
+
   const handleDeleteLead = async (naver_id: string) => {
     // Soft delete only — a hard delete removes the doc from the dedupe set,
     // so the next cron sweep or Bulk Sweep could re-add and re-contact an
@@ -601,6 +620,7 @@ export default function App() {
           onVerifyEmail={handleVerifyEmail}
           onEditContact={handleEditContact}
           onReview={handleReviewLead}
+          onReenrich={handleReenrich}
           onDelete={handleDeleteLead}
           onSendAndNext={handleSendAndNext}
           renderDraft={renderEmailDraftSection}

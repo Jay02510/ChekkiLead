@@ -6,6 +6,7 @@ dotenv.config({ path: ".env.local", override: true });
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { searchNaver, enrichLeadServer, generateEmailServer } from "./src/lib/serverActions";
+import enrichGrounded from "./api/enrich-grounded";
 
 async function startServer() {
   const app = express();
@@ -23,6 +24,9 @@ async function startServer() {
       res.status(error.status || 500).json({ error: error.message || "Failed to enrich lead." });
     }
   });
+
+  // Same handler Vercel runs in production (api/enrich-grounded.ts).
+  app.post("/api/enrich-grounded", enrichGrounded);
 
   app.post("/api/generate-email", async (req, res) => {
     try {

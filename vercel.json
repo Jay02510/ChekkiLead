@@ -1,8 +1,16 @@
 {
   "crons": [
-    { "path": "/api/cron-sweep", "schedule": "0 0 * * *" }
+    {
+      "path": "/api/cron-sweep",
+      "schedule": "0 0 * * *"
+    }
   ],
   "functions": {
-    "api/cron-sweep.ts": { "maxDuration": 60 }
+    "api/cron-sweep.ts": {
+      "maxDuration": 60
+    },
+    "api/enrich-grounded.ts": {
+      "maxDuration": 60
+    }
   }
 }

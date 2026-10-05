@@ -29,6 +29,7 @@ interface QueueViewProps {
   onBulkDelete: () => void;
   onStatusChange: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail: (naver_id: string) => void;
+  onReenrich: (naver_id: string) => Promise<void>;
   onReview: (naver_id: string, decision: 'confirm' | 'reject') => void;
   onEditContact: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
   onDelete: (naver_id: string) => void;
@@ -239,6 +240,7 @@ export function QueueView(p: QueueViewProps) {
                 onVerifyEmail={p.onVerifyEmail}
                 onEditContact={p.onEditContact}
                 onReview={p.onReview}
+                onReenrich={p.onReenrich}
                 onDelete={p.onDelete}
               />
               {p.renderDraft(selected)}

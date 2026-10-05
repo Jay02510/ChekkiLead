@@ -87,3 +87,10 @@ export function buildContactUpdate(
   if (students !== (lead.approx_students || '')) updates.approx_students = students;
   return { updates };
 }
+
+// Which saved leads grounded re-enrichment may touch: not removed, not a
+// non-target, not opted out, nothing already sent, and a Naver listing to
+// work from.
+export const canReenrich = (lead: Pick<EnrichedLead, 'deleted' | 'non_target' | 'firebase_status' | 'naver_raw'>) =>
+  !lead.deleted && !lead.non_target && !!lead.naver_raw &&
+  (lead.firebase_status === 'not_contacted' || lead.firebase_status === 'pending');
