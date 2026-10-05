@@ -22,6 +22,34 @@ export const NaverItemSchema = z.object({
   mapy: z.string(),
 });
 
+const sourceType = z.enum(["blog_own", "blog_third_party", "website"]);
+
+const groundedFact = <V extends z.ZodTypeAny>(value: V) => z.object({
+  value: value.nullable(),
+  status: z.enum(["sourced", "inferred", "not_found"]),
+  chunk_id: z.string().nullable(),
+  quote: z.string().nullable(),
+  source_url: z.string().nullable(),
+  source_type: sourceType.nullable(),
+  verification: z.enum(["passed", "failed"]).nullable(),
+  rejected: z.array(z.object({ chunk_id: z.string().nullable(), quote: z.string().nullable(), reason: z.string() })).optional(),
+});
+
+export const GroundedFactsSchema = z.object({
+  age_range: groundedFact(z.string()),
+  approx_students: groundedFact(z.string()),
+  cefr_levels: groundedFact(z.array(cefrLevel)),
+  hook: groundedFact(z.string()),
+});
+
+export const GroundingSchema = z.object({
+  mode: z.enum(["grounded_full", "grounded_retrieval"]),
+  chunks_given: z.number(),
+  chunks_dropped: z.number(),
+  verification_failures: z.number(),
+  enriched_at: z.string(),
+});
+
 export const EnrichedLeadSchema = z.object({
   institution_name_en: z.string().min(1),
   institution_name_kr: z.string().min(1),
@@ -53,6 +81,9 @@ export const EnrichedLeadSchema = z.object({
   english_signal: z.enum(["confirmed", "unsure"]).optional(),
   needs_review: z.boolean().optional(),
   naver_raw: NaverItemSchema.optional(),
+  facts: GroundedFactsSchema.optional(),
+  grounding: GroundingSchema.optional(),
+  manual_fields: z.array(z.string()).optional(),
 });
 
 export const EmailDraftSchema = z.object({

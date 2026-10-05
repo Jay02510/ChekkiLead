@@ -5,9 +5,9 @@
 import { createHash } from "node:crypto";
 import { parse } from "node-html-parser";
 import { stripHtml } from "../naverId.js";
-import type { EnrichedLead, CandidateEmail } from "../../types";
+import type { EnrichedLead, CandidateEmail, SourceType } from "../../types";
 
-export type SourceType = "blog_own" | "blog_third_party" | "website";
+export type { SourceType };
 export type FetchLike = typeof fetch;
 
 export interface BlogPost {

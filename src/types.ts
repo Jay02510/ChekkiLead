@@ -48,6 +48,11 @@ export interface EnrichedLead {
   // Set in code from the Naver listing (englishSignal), never by the model.
   // 'unsure' leads wait in the Review queue until a person confirms English.
   english_signal?: 'confirmed' | 'unsure';
+  // Present on leads enriched from sources (see src/lib/rag/ground.ts).
+  facts?: GroundedFacts;
+  grounding?: Grounding;
+  // Fields a person typed in; re-enrichment must not overwrite them.
+  manual_fields?: string[];
   needs_review?: boolean;
   // Phase 1 source collection (written server-side by scripts/collect-sources.ts).
   sources_collected_at?: string;
@@ -61,11 +66,47 @@ export interface EnrichedLead {
 export interface CandidateEmail {
   email: string;
   sourceId: string;
-  sourceType: 'blog_own' | 'blog_third_party' | 'website';
+  sourceType: SourceType;
 }
 
 // How a lead is enriched. baseline = the frozen original prompt (the control);
 // the grounded modes answer only from collected source chunks.
+export type SourceType = 'blog_own' | 'blog_third_party' | 'website';
+
+export type FactStatus = 'sourced' | 'inferred' | 'not_found';
+
+// One fact answered from collected source chunks. sourced: the chunk states
+// it. inferred: reasoned from a cited quote ("초등 1~3학년 파닉스반" -> levels).
+// not_found: nothing supports a value; value, chunk_id and quote are null.
+// verification is set by code (verifyFacts), and source_url / source_type
+// come from the chunk, never from the model.
+export interface GroundedFact<V = string | string[]> {
+  value: V | null;
+  status: FactStatus;
+  chunk_id: string | null;
+  quote: string | null;
+  source_url: string | null;
+  source_type: SourceType | null;
+  verification: 'passed' | 'failed' | null;
+  // Cited quotes that failed verification, kept for debugging.
+  rejected?: { chunk_id: string | null; quote: string | null; reason: string }[];
+}
+
+export interface GroundedFacts {
+  age_range: GroundedFact<string>;
+  approx_students: GroundedFact<string>;
+  cefr_levels: GroundedFact<string[]>;
+  hook: GroundedFact<string>;
+}
+
+export interface Grounding {
+  mode: GroundedMode;
+  chunks_given: number;
+  chunks_dropped: number;
+  verification_failures: number;
+  enriched_at: string;
+}
+
 export type EnrichMode = 'baseline' | 'grounded_full' | 'grounded_retrieval';
 export type GroundedMode = Exclude<EnrichMode, 'baseline'>;
 
