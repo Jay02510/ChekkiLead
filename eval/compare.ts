@@ -1,5 +1,5 @@
 // Prints the latest result for each mode side by side:
-// baseline vs grounded_full vs grounded_retrieval.
+// baseline_v0 vs baseline vs grounded_full vs grounded_retrieval.
 //
 //   npm run eval:compare
 //
@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { formatComparison, type ResultSummary } from "./compare-format";
 
 const dir = "eval/results";
-const MODES = ["baseline", "grounded_full", "grounded_retrieval"];
+const MODES = ["baseline_v0", "baseline", "grounded_full", "grounded_retrieval"];
 
 const files = readdirSync(dir).filter(f => f.endsWith(".json")).map(f => ({ f, t: statSync(`${dir}/${f}`).mtimeMs }));
 const latest: ResultSummary[] = [];

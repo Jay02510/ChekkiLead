@@ -377,5 +377,161 @@ export const GROUNDED_ENRICH_SCHEMA = {
 };
 
 // Existing callers use the baseline pair under its original names.
+
+// ---------- baseline_v0: the original pipeline, as it ran before 5b6dd9b ----------
+//
+// Copied byte-for-byte from src/lib/geminiPrompts.ts at commit 22bc257 (use
+// `git show 22bc257:src/lib/geminiPrompts.ts` to check). BASELINE_SYSTEM_PROMPT
+// above was frozen *after* 5b6dd9b removed the guessing instructions, so it
+// cannot show the result that matters most: how often the original system
+// invented facts. This can. Note task 4, which tells the model to construct an
+// email address and "always provide something", and task 3, which tells it to
+// estimate ages and student counts it has never seen.
+//
+// Do not edit, tidy or reformat any of this. It is a historical record, and
+// geminiPrompts.test.ts hashes it.
+
+export const BASELINE_V0_SYSTEM_PROMPT = `You are a B2B lead enrichment agent for Chekki AI, a Korean EdTech brand.
+
+## CONTEXT
+You receive RAW data from the Naver Local Search API about a Korean English 
+education institution. The Naver data is real but incomplete — it has the name, 
+address, phone, and sometimes a website. Your job is to enrich this raw data 
+into a complete, structured lead profile ready for cold outreach.
+
+You must return ONLY valid JSON matching the schema. No preamble, no explanation, 
+no markdown code blocks. Raw JSON only.
+
+## ABOUT CHEKKI AI / CHEKKI SCHOOLS
+- Core product: ${PRODUCT}
+- B2B program: ${CHEKKI_SCHOOLS}
+- This outreach targets hagwon directors/owners for a Chekki Schools pilot
+  or founding-partner slot — NOT a direct consumer app pitch.
+- Web: chekkiai.com, chekkiai.com/schools
+- Founder: ${FOUNDER_BACKGROUND}
+- Contact: outreach routed through the Chekki business account, not
+  personal social profiles.
+
+## YOUR ENRICHMENT TASKS
+Given the raw Naver data, you must:
+
+1. TRANSLATE: Provide both Korean and clean English institution names
+   (Naver titles often contain HTML tags like <b> — strip these entirely)
+
+2. CLASSIFY: Assign the correct institution_type from the enum. Use the 
+   Naver category field and name to determine this accurately.
+   - "영어학원" or "어학원" → hagwon
+   - "초등학교" → elementary_school  
+   - "유치원" or "어린이집" → kindergarten
+   - "국제학교" → international_school
+   - "과외" or small centre → tutoring_centre
+
+3. ESTIMATE: Based on institution type and district, estimate:
+   - student_age_range (be specific: "5–12 years" not just "children")
+   - approx_students (realistic range: "60–100 students")
+   - cefr_levels_taught (what levels this type of school typically covers)
+
+4. EMAIL: 
+   - If a website was provided and an email was scraped from it, use that
+   - If no email found but website exists, construct the most likely email 
+     using their domain (e.g. info@theirdomain.com)
+   - If no website, construct based on common Korean hagwon patterns:
+     info@[englishname].co.kr or [englishname]@naver.com
+   - Always provide something — mark as "estimated" in agent_notes if constructed
+
+5. SCORE: Rate outreach_priority 1–5. Fastest-closing target for Chekki 
+   Schools is a single-location, owner-operated hagwon — the owner IS the 
+   decision-maker, so approval takes one conversation instead of a 
+   franchise/corporate chain's committee process. Weight decision-speed 
+   over district wealth:
+   - 5: Independent/single-location English hagwon or kindergarten, young 
+       learners (4–10), parent-facing, name/branding suggests 
+       owner-operated rather than franchise or multi-branch chain
+   - 4: English hagwon outside young-learner sweet spot, or franchise 
+       branch but still small/local-feeling
+   - 3: Elementary school with English programme, tutoring centre, or a 
+       larger/multi-branch academy (real fit, slower to close)
+   - 2: Middle/high school focused, older learners, or clearly part of a 
+       large corporate chain (long sales cycle, low fit for a pilot)
+   - 1: Weak fit — wrong age group, not parent-facing, or non-English focus
+   Note: a premium district (Gangnam, Seocho, Bundang, Mapo) does NOT by 
+   itself raise the score — it's a secondary note in agent_notes, not a 
+   scoring factor. A small independent hagwon in an ordinary district that 
+   can decide today beats a large branded academy in a wealthy district 
+   that needs head-office approval.
+
+6. NOTES: Write one agent_notes sentence flagging anything useful:
+   - Naver listing shows only 1 location / no franchise chain name = likely 
+     owner-operated, good pilot fit
+   - Multiple branches or a recognizable franchise brand = flag as slower 
+     decision cycle
+   - High review count on Naver = established, worth prioritising
+   - Premium district = higher budget parents (secondary factor only)
+   - Website found = email likely accurate
+   - No website = phone outreach may be better than email
+
+## CRITICAL RULES
+- Strip ALL HTML from Naver titles: <b>애플</b>영어학원 → 애플영어학원
+- Never invent phone numbers — use exactly what Naver provides
+- Never invent addresses — use exactly what Naver provides
+- Email and website are the only fields you may reasonably estimate
+- If institution_type is genuinely unclear, default to "hagwon"
+- naver_id must be copied exactly from the input data
+- personalization_hook must be one specific, verifiable fact about the
+  institution — an Instagram handle, a Naver Blog URL, a franchise/
+  independent signal, review count, etc. Never a generic institution-type
+  description ("a hagwon in Gangnam" is not a hook).`;
+
+export const BASELINE_V0_ENRICH_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    institution_name_en: { type: Type.STRING, description: "Clean English name, no HTML tags" },
+    institution_name_kr: { type: Type.STRING, description: "Clean Korean name, no HTML tags" },
+    institution_type: {
+      type: Type.STRING,
+      format: "enum",
+      enum: ["hagwon", "elementary_school", "kindergarten", "international_school", "tutoring_centre"],
+      description: "hagwon, elementary_school, international_school, kindergarten, tutoring_centre"
+    },
+    city: { type: Type.STRING, description: "City in Korea e.g. Seoul, Busan, Incheon, Seongnam" },
+    district: { type: Type.STRING, description: "District (gu) e.g. Gangnam-gu, Mapo-gu" },
+    address_full: { type: Type.STRING, description: "Full address exactly as returned by Naver" },
+    director_name: { type: Type.STRING, description: "Director or principal name if found. null if not available.", nullable: true },
+    email: { type: Type.STRING, description: "Contact email — real if scraped, estimated if constructed" },
+    email_confidence: {
+      type: Type.STRING,
+      format: "enum",
+      enum: ["scraped", "estimated", "unknown"],
+      description: "scraped, estimated, or unknown"
+    },
+    phone: { type: Type.STRING, description: "Exact phone from Naver data. Never invented." },
+    website: { type: Type.STRING, description: "Website URL from Naver or null", nullable: true },
+    naver_id: { type: Type.STRING, description: "Unique Naver place ID — copied exactly from input. Used for deduplication in Firebase." },
+    instagram: { type: Type.STRING, description: "Instagram handle e.g. @schoolname or null", nullable: true },
+    student_age_range: { type: Type.STRING, description: "Specific age range e.g. 5–12 years" },
+    approx_students: { type: Type.STRING, description: "Estimated student count e.g. 60–100 students" },
+    cefr_levels_taught: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.STRING,
+        format: "enum",
+        enum: ["Pre-A1", "A1", "A2", "B1", "B2", "C1"],
+      },
+      description: "CEFR levels this institution likely teaches (Pre-A1, A1, A2, B1, B2, C1)"
+    },
+    outreach_priority: { type: Type.INTEGER, description: "Chekki fit score. 5=perfect fit, 1=weak fit." },
+    fit_reason: { type: Type.STRING, description: "One sentence explaining the priority score" },
+    personalization_hook: { type: Type.STRING, description: "One specific, verifiable fact about this institution to use as the email hook — e.g. an Instagram handle, a Naver Blog URL, a franchise/independent signal. Never a generic institution-type description." },
+    agent_notes: { type: Type.STRING, description: "Useful context for personalising outreach — review count, district notes, contact method recommendation" },
+    firebase_status: { type: Type.STRING, description: "Outreach status — always set to not_contacted on creation" }
+  },
+  required: [
+    "institution_name_en", "institution_name_kr", "institution_type",
+    "city", "district", "email", "email_confidence", "phone",
+    "naver_id", "student_age_range", "approx_students",
+    "outreach_priority", "fit_reason", "firebase_status", "personalization_hook"
+  ]
+};
+
 export const SYSTEM_PROMPT = BASELINE_SYSTEM_PROMPT;
 export const ENRICH_SCHEMA = BASELINE_ENRICH_SCHEMA;

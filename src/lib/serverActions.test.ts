@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyEmailCompliance, applyNaverTruth, blankUnstated } from './serverActions';
+import { applyEmailCompliance, applyNaverTruth, applyNaverTruthV0, blankUnstated } from './serverActions';
 import { EmailDraft, EnrichedLead, NaverSearchResult } from '../types';
 
 describe('applyEmailCompliance', () => {
@@ -107,6 +107,30 @@ describe('applyNaverTruth', () => {
     const named = applyNaverTruth({ ...naverItem, title: 'Test 영어학원' }, { ...modelTampered, needs_review: true, english_signal: 'unsure' });
     expect(named.english_signal).toBe('confirmed');
     expect(named.needs_review).toBe(false);
+  });
+
+  // baseline_v0 exists to measure what the original pipeline invented, so it
+  // must keep the model's guesses instead of blanking them.
+  describe('applyNaverTruthV0', () => {
+    const v0 = applyNaverTruthV0(naverItem, modelTampered);
+
+    it('still fixes the identity fields, so the eval can match the lead to its gold entry', () => {
+      expect(v0.naver_id).toBe('place_123456');
+      expect(v0.phone).toBe('02-1234-5678');
+      expect(v0.address_full).toBe('서울 강남구 테헤란로 1');
+    });
+
+    it('keeps the guessed email, age and student count the model returned', () => {
+      expect(v0.email).toBe('test@example.com');
+      expect(v0.email_confidence).toBe('estimated');
+      expect(v0.student_age_range).toBe('7-12');
+      expect(v0.approx_students).toBe('100');
+    });
+
+    it('does not add english_signal or needs_review, which postdate it', () => {
+      expect(v0.english_signal).toBeUndefined();
+      expect(v0.needs_review).toBeUndefined();
+    });
   });
 });
 

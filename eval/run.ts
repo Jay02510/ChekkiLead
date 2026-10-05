@@ -3,7 +3,10 @@
 // out that commit and run this again — the result file records the commit.
 //
 //   npm run eval                      # baseline, the frozen original prompt
-//   npm run eval -- --mode <mode>     # baseline | grounded_full | grounded_retrieval
+//   npm run eval -- --mode <mode>     # baseline_v0 | baseline | grounded_full | grounded_retrieval
+//
+// baseline_v0 is the pipeline as it shipped before 5b6dd9b: it guesses emails
+// and ages, so it's the "before" the other modes are measured against.
 import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
@@ -62,7 +65,7 @@ Return JSON only.`,
   return JSON.parse(response.text || "{}").verdict ?? "unsupported";
 }
 
-const MODES: EnrichMode[] = ["baseline", "grounded_full", "grounded_retrieval"];
+const MODES: EnrichMode[] = ["baseline_v0", "baseline", "grounded_full", "grounded_retrieval"];
 const modeArg = process.argv.indexOf("--mode");
 const MODE = (modeArg > -1 ? process.argv[modeArg + 1] : "baseline") as EnrichMode;
 if (!MODES.includes(MODE)) {
@@ -118,8 +121,8 @@ async function main() {
     let error: string | undefined;
     try {
       const started = Date.now();
-      if (MODE === "baseline") {
-        out = await enrichLeadServer(entry.naver_raw, onUsage);
+      if (MODE === "baseline" || MODE === "baseline_v0") {
+        out = await enrichLeadServer(entry.naver_raw, onUsage, MODE);
       } else {
         const frozen = loadFrozen(entry.naver_id);
         if (!frozen) throw new Error(`no frozen sources for ${entry.name_kr} — run eval/snapshot-sources.ts`);

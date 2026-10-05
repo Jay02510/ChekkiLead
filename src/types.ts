@@ -107,8 +107,12 @@ export interface Grounding {
   enriched_at: string;
 }
 
-export type EnrichMode = 'baseline' | 'grounded_full' | 'grounded_retrieval';
-export type GroundedMode = Exclude<EnrichMode, 'baseline'>;
+// baseline_v0 is the original pipeline (prompt from commit 22bc257, no
+// post-processing), kept only so the eval can measure what it invented.
+// baseline is that prompt after 5b6dd9b stopped the guessing.
+export type EnrichMode = 'baseline_v0' | 'baseline' | 'grounded_full' | 'grounded_retrieval';
+export type BaselineMode = Extract<EnrichMode, 'baseline_v0' | 'baseline'>;
+export type GroundedMode = Exclude<EnrichMode, BaselineMode>;
 
 export interface EmailDraft {
   subject_line_kr: string;

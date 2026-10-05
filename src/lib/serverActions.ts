@@ -3,11 +3,11 @@
 // fix here doesn't have to be made twice. Node/server-only — never imported
 // from client code (src/App.tsx etc), so Vite won't bundle this into the browser.
 import { GoogleGenAI } from "@google/genai";
-import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA } from "./geminiPrompts.js";
+import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA, BASELINE_V0_SYSTEM_PROMPT, BASELINE_V0_ENRICH_SCHEMA } from "./geminiPrompts.js";
 import { getNaverId } from "./naverId.js";
 import { englishSignal } from "./leadFilter.js";
 import { EnrichedLeadSchema, EmailDraftSchema } from "./validation.js";
-import type { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
+import type { BaselineMode, EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
 export function genaiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -89,15 +89,22 @@ export function blankUnstated(item: NaverSearchResult, lead: EnrichedLead): Enri
   };
 }
 
+// The fields code knows from the raw Naver result, whatever the mode. Even
+// baseline_v0 gets these: without the real naver_id, the eval can't line a
+// result up with its gold entry.
+const naverTruth = (item: NaverSearchResult) => ({
+  naver_id: getNaverId(item),
+  phone: item.telephone,
+  address_full: item.roadAddress || item.address,
+  firebase_status: 'not_contacted' as const,
+  // Kept so any lead can be re-run through a future pipeline version.
+  naver_raw: item,
+});
+
 export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): EnrichedLead {
   return {
     ...blankUnstated(item, parsed),
-    naver_id: getNaverId(item),
-    phone: item.telephone,
-    address_full: item.roadAddress || item.address,
-    firebase_status: 'not_contacted',
-    // Kept so any lead can be re-run through a future pipeline version.
-    naver_raw: item,
+    ...naverTruth(item),
     // Whether English is named in the listing is a fact about the input, so
     // code sets it. "none" never reaches here (the callers filter it out).
     english_signal: englishSignal(item) === "confirmed" ? "confirmed" : "unsure",
@@ -105,13 +112,20 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
   };
 }
 
+// baseline_v0: identity fields only. No blankUnstated, no english_signal — the
+// model's guesses are left exactly as it made them, which is the whole point
+// of running this mode.
+export const applyNaverTruthV0 = (item: NaverSearchResult, parsed: EnrichedLead): EnrichedLead =>
+  ({ ...parsed, ...naverTruth(item) });
+
 // Reports each Gemini call's token usage; the eval uses it for cost per lead.
 export type UsageSink = (usage: { input_tokens: number; output_tokens: number; kind?: "generate" | "embed" }) => void;
 
-export async function enrichLeadServer(item: NaverSearchResult, onUsage?: UsageSink): Promise<EnrichedLead> {
+export async function enrichLeadServer(item: NaverSearchResult, onUsage?: UsageSink, mode: BaselineMode = "baseline"): Promise<EnrichedLead> {
   if (!item) throw Object.assign(new Error("item is required."), { status: 400 });
 
   const ai = genaiClient();
+  const v0 = mode === "baseline_v0";
   let lastError: unknown;
 
   // One retry covers a malformed-JSON or schema-validation failure, same as
@@ -122,18 +136,19 @@ export async function enrichLeadServer(item: NaverSearchResult, onUsage?: UsageS
       const naverId = getNaverId(item);
       const response = await withRetry(() => ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: JSON.stringify({ ...item, naver_id: naverId, english_signal: englishSignal(item) }),
+        // baseline_v0 predates english_signal, so it sees the raw item only.
+        contents: JSON.stringify(v0 ? { ...item, naver_id: naverId } : { ...item, naver_id: naverId, english_signal: englishSignal(item) }),
         config: {
-          systemInstruction: SYSTEM_PROMPT,
+          systemInstruction: v0 ? BASELINE_V0_SYSTEM_PROMPT : SYSTEM_PROMPT,
           responseMimeType: "application/json",
-          responseSchema: ENRICH_SCHEMA,
+          responseSchema: v0 ? BASELINE_V0_ENRICH_SCHEMA : ENRICH_SCHEMA,
         },
       }));
 
       onUsage?.({ input_tokens: response.usageMetadata?.promptTokenCount ?? 0, output_tokens: response.usageMetadata?.candidatesTokenCount ?? 0 });
       const text = response.text;
       if (!text) throw new Error("No response from Gemini.");
-      const candidate = applyNaverTruth(item, JSON.parse(text));
+      const candidate = (v0 ? applyNaverTruthV0 : applyNaverTruth)(item, JSON.parse(text));
       return EnrichedLeadSchema.parse(candidate) as EnrichedLead;
     } catch (err) {
       if ((err as any)?.quota) throw err;
