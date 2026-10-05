@@ -43,7 +43,7 @@ export const needsVerification = (lead: EnrichedLead) =>
 export const sendBlockReason = (lead: EnrichedLead): string | null => {
   if (lead.firebase_status === 'opted_out') return 'This lead opted out.';
   if (lead.needs_review) return 'Confirm this school teaches English first.';
-  if (lead.email_confidence === 'unknown') return 'No email address found for this lead.';
+  if (lead.email_confidence === 'unknown') return 'No email yet. Add one with Edit details.';
   if (needsVerification(lead)) return 'Verify the email address first.';
   return null;
 };
@@ -55,6 +55,8 @@ export interface ContactEdit {
   email: string;
   phone: string;
   website: string;
+  student_age_range: string;
+  approx_students: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,7 +65,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // An address a person typed in is one they found on the academy's own page, so
 // it is stored as scraped and verified. Clearing the email makes it unknown.
 export function buildContactUpdate(
-  lead: Pick<EnrichedLead, 'email' | 'phone' | 'website'>,
+  lead: Pick<EnrichedLead, 'email' | 'phone' | 'website' | 'student_age_range' | 'approx_students'>,
   edit: ContactEdit,
 ): { updates: Record<string, string | null> } | { error: string } {
   const email = edit.email.trim();
@@ -79,5 +81,9 @@ export function buildContactUpdate(
   }
   if (phone !== (lead.phone || '')) updates.phone = phone;
   if (website !== (lead.website || '')) updates.website = website || null;
+  const age = edit.student_age_range.trim();
+  const students = edit.approx_students.trim();
+  if (age !== (lead.student_age_range || '')) updates.student_age_range = age;
+  if (students !== (lead.approx_students || '')) updates.approx_students = students;
   return { updates };
 }

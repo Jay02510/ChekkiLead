@@ -34,12 +34,12 @@ function Field({ icon: Icon, label, children }: { icon: React.ElementType; label
 
 export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact, onReview }: LeadCardProps) {
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ email: '', phone: '', website: '' });
+  const [form, setForm] = useState({ email: '', phone: '', website: '', student_age_range: '', approx_students: '' });
   const [formError, setFormError] = useState('');
   useEffect(() => { setEditing(false); setFormError(''); }, [lead.naver_id]);
 
   const startEdit = () => {
-    setForm({ email: lead.email || '', phone: lead.phone || '', website: lead.website || '' });
+    setForm({ email: lead.email || '', phone: lead.phone || '', website: lead.website || '', student_age_range: lead.student_age_range || '', approx_students: lead.approx_students || '' });
     setFormError('');
     setEditing(true);
   };
@@ -123,11 +123,13 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           <Building2 className="w-4 h-4" aria-hidden />
           {institutionLabel(lead.institution_type)}
         </span>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-300 text-sm font-medium">
-          <Users className="w-4 h-4" aria-hidden />
-          {lead.student_age_range}
-        </span>
-        {lead.cefr_levels_taught?.length > 0 && (
+        {lead.student_age_range && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-300 text-sm font-medium">
+            <Users className="w-4 h-4" aria-hidden />
+            {lead.student_age_range}
+          </span>
+        )}
+        {(lead.cefr_levels_taught?.length ?? 0) > 0 && (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/10 text-violet-300 text-sm font-medium">
             <GraduationCap className="w-4 h-4" aria-hidden />
             {lead.cefr_levels_taught.join(', ')}
@@ -140,7 +142,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           onSubmit={(e) => { e.preventDefault(); saveEdit(); }}
           className="px-5 sm:px-6 py-5 border-t border-white/10 space-y-3"
         >
-          {([['email', 'Email', 'email'], ['phone', 'Phone', 'tel'], ['website', 'Website', 'url']] as const).map(([key, label, type]) => (
+          {([['email', 'Email', 'email'], ['phone', 'Phone', 'tel'], ['website', 'Website', 'url'], ['student_age_range', 'Student ages (e.g. 만 3–5세)', 'text'], ['approx_students', 'Number of students', 'text']] as const).map(([key, label, type]) => (
             <label key={key} className="block">
               <span className="text-xs text-zinc-400">{label}</span>
               <input
@@ -151,7 +153,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
               />
             </label>
           ))}
-          <p className="text-xs text-zinc-400">A typed email is saved as found on the academy's own page and counts as verified.</p>
+          <p className="text-xs text-zinc-400">A typed email is saved as found on the academy's own page and counts as verified. Leave a field blank if you don't know it.</p>
           {formError && <p role="alert" className="text-xs text-red-400">{formError}</p>}
           <div className="flex gap-2">
             <button type="submit" className={`px-4 py-1.5 text-sm font-semibold text-black bg-brand-orange hover:bg-orange-400 rounded-full ${focusRing}`}>Save</button>
@@ -192,7 +194,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
         </Field>
         <div className="md:col-span-2 flex flex-wrap gap-x-8 gap-y-1 text-sm text-zinc-400">
           <span>{lead.city}, {lead.district}</span>
-          <span>{lead.approx_students} students</span>
+          {lead.approx_students && <span>{lead.approx_students} students</span>}
           <span className="font-mono text-xs self-center">{lead.naver_id}</span>
           {isSaved && onEditContact && !editing && (
             <button
@@ -201,7 +203,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
               className={`ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-orange-300 hover:text-orange-200 rounded ${focusRing}`}
             >
               <Pencil className="w-3.5 h-3.5" aria-hidden />
-              Edit contact
+              Edit details
             </button>
           )}
         </div>

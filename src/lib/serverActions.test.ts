@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyEmailCompliance, applyNaverTruth } from './serverActions';
+import { applyEmailCompliance, applyNaverTruth, blankUnstated } from './serverActions';
 import { EmailDraft, EnrichedLead, NaverSearchResult } from '../types';
 
 describe('applyEmailCompliance', () => {
@@ -108,4 +108,36 @@ describe('applyNaverTruth', () => {
     expect(named.english_signal).toBe('confirmed');
     expect(named.needs_review).toBe(false);
   });
+});
+
+describe('blankUnstated', () => {
+  const item: NaverSearchResult = {
+    title: '테스트영어학원', link: 'https://m.place.naver.com/place/1/home', category: '어학교육>영어교육', description: '',
+    telephone: '', address: '', roadAddress: '', mapx: '0', mapy: '0',
+  };
+  const guessed = {
+    email: 'info@test.co.kr', email_confidence: 'estimated', student_age_range: '5–12 years', approx_students: '60–100 students',
+    cefr_levels_taught: ['A1', 'A2'],
+  } as unknown as EnrichedLead;
+
+  it('blanks a guessed email', () => {
+    const out = blankUnstated(item, guessed);
+    expect(out.email).toBe('');
+    expect(out.email_confidence).toBe('unknown');
+  });
+  it('keeps an email that appears in the listing text', () => {
+    const out = blankUnstated({ ...item, description: '문의 info@test.co.kr' }, guessed);
+    expect(out.email).toBe('info@test.co.kr');
+    expect(out.email_confidence).toBe('scraped');
+  });
+  it('blanks ages, student count and levels the listing does not state', () => {
+    const out = blankUnstated(item, guessed);
+    expect(out.student_age_range).toBe('');
+    expect(out.approx_students).toBe('');
+    expect(out.cefr_levels_taught).toEqual([]);
+  });
+  it('keeps an age range when the name states the level', () =>
+    expect(blankUnstated({ ...item, title: '테스트초등영어학원' }, guessed).student_age_range).toBe('5–12 years'));
+  it('keeps levels the listing names', () =>
+    expect(blankUnstated({ ...item, description: 'CEFR A1-A2 과정' }, guessed).cefr_levels_taught).toEqual(['A1', 'A2']));
 });

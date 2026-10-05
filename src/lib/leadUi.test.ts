@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { buildContactUpdate, sendBlockReason, isBlockedFromSending } from './leadUi';
 import type { EnrichedLead } from '../types';
 
-const lead = { email: 'guess@naver.com', phone: '', website: null as string | null };
-const edit = { email: 'guess@naver.com', phone: '', website: '' };
+const lead = { email: 'guess@naver.com', phone: '', website: null as string | null, student_age_range: '', approx_students: '' };
+const edit = { email: 'guess@naver.com', phone: '', website: '', student_age_range: '', approx_students: '' };
 
 describe('buildContactUpdate', () => {
   it('returns nothing when nothing changed', () =>
@@ -24,6 +24,13 @@ describe('buildContactUpdate', () => {
     }));
   it('stores a cleared website as null', () =>
     expect(buildContactUpdate({ ...lead, website: 'https://a.kr' }, { ...edit, website: '' })).toEqual({ updates: { website: null } }));
+});
+
+describe('buildContactUpdate ages', () => {
+  it('saves hand-entered ages and student count', () =>
+    expect(buildContactUpdate(lead, { ...edit, student_age_range: '만 3–5세', approx_students: '40' })).toEqual({
+      updates: { student_age_range: '만 3–5세', approx_students: '40' },
+    }));
 });
 
 describe('send blocking for leads in manual review', () => {

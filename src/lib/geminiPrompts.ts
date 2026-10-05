@@ -36,18 +36,23 @@ Given the raw Naver data, you must:
    - "국제학교" → international_school
    - "과외" or small centre → tutoring_centre
 
-3. ESTIMATE: Based on institution type and district, estimate:
-   - student_age_range (be specific: "5–12 years" not just "children")
-   - approx_students (realistic range: "60–100 students")
-   - cefr_levels_taught (what levels this type of school typically covers)
+3. FACTS YOU CANNOT SEE: The Naver data never states student ages, student
+   counts or CEFR levels, and you cannot scrape anything else. Do not estimate
+   them from the institution type or district.
+   - student_age_range: only if the name, category or description states it
+     (e.g. "초등", "만 3–5세"). Otherwise return "".
+   - approx_students: return "" unless the input states it.
+   - cefr_levels_taught: return [] unless the input names levels.
+   A blank field is correct. A person fills it in later.
 
-4. EMAIL: 
-   - If a website was provided and an email was scraped from it, use that
-   - If no email found but website exists, construct the most likely email 
-     using their domain (e.g. info@theirdomain.com)
-   - If no website, construct based on common Korean hagwon patterns:
-     info@[englishname].co.kr or [englishname]@naver.com
-   - Always provide something — mark as "estimated" in agent_notes if constructed
+4. EMAIL:
+   - Naver does not provide emails. Use an email only if it appears in the
+     input text exactly as written.
+   - Otherwise return email "" and email_confidence "unknown". Never construct
+     an address from the school's name or domain, and never guess a pattern
+     like info@... or name@naver.com.
+   - Do not invent a website, instagram handle or director name either: null
+     when not in the input.
 
 5. SCORE: Rate outreach_priority 1–5. Fastest-closing target for Chekki 
    Schools is a single-location, owner-operated hagwon — the owner IS the 
@@ -77,7 +82,7 @@ Given the raw Naver data, you must:
      decision cycle
    - High review count on Naver = established, worth prioritising
    - Premium district = higher budget parents (secondary factor only)
-   - Website found = email likely accurate
+   - No email on the listing = say so; a person will add one
    - No website = phone outreach may be better than email
 
 ## ENGLISH SIGNAL
@@ -95,7 +100,8 @@ English. Do not change english_signal; it is not part of your output.
 - Strip ALL HTML from Naver titles: <b>애플</b>영어학원 → 애플영어학원
 - Never invent phone numbers — use exactly what Naver provides
 - Never invent addresses — use exactly what Naver provides
-- Email and website are the only fields you may reasonably estimate
+- Never estimate email, website, student ages, student counts or CEFR levels:
+  leave them blank when the input doesn't state them
 - If institution_type is genuinely unclear, default to "hagwon"
 - naver_id must be copied exactly from the input data
 - personalization_hook must be one specific, verifiable fact about the
@@ -187,19 +193,19 @@ export const ENRICH_SCHEMA = {
     district: { type: Type.STRING, description: "District (gu) e.g. Gangnam-gu, Mapo-gu" },
     address_full: { type: Type.STRING, description: "Full address exactly as returned by Naver" },
     director_name: { type: Type.STRING, description: "Director or principal name if found. null if not available.", nullable: true },
-    email: { type: Type.STRING, description: "Contact email — real if scraped, estimated if constructed" },
+    email: { type: Type.STRING, description: "Contact email exactly as it appears in the input, or an empty string. Never constructed." },
     email_confidence: {
       type: Type.STRING,
       format: "enum",
       enum: ["scraped", "estimated", "unknown"],
-      description: "scraped, estimated, or unknown"
+      description: "scraped if the email appears in the input, otherwise unknown. Never estimated."
     },
     phone: { type: Type.STRING, description: "Exact phone from Naver data. Never invented." },
     website: { type: Type.STRING, description: "Website URL from Naver or null", nullable: true },
     naver_id: { type: Type.STRING, description: "Unique Naver place ID — copied exactly from input. Used for deduplication in Firebase." },
     instagram: { type: Type.STRING, description: "Instagram handle e.g. @schoolname or null", nullable: true },
-    student_age_range: { type: Type.STRING, description: "Specific age range e.g. 5–12 years" },
-    approx_students: { type: Type.STRING, description: "Estimated student count e.g. 60–100 students" },
+    student_age_range: { type: Type.STRING, description: "Age range only if the input states it, e.g. 5–12 years. Otherwise an empty string." },
+    approx_students: { type: Type.STRING, description: "Student count only if the input states it. Otherwise an empty string." },
     cefr_levels_taught: {
       type: Type.ARRAY,
       items: {
@@ -207,7 +213,7 @@ export const ENRICH_SCHEMA = {
         format: "enum",
         enum: ["Pre-A1", "A1", "A2", "B1", "B2", "C1"],
       },
-      description: "CEFR levels this institution likely teaches (Pre-A1, A1, A2, B1, B2, C1)"
+      description: "CEFR levels only if the input names them. Otherwise an empty array."
     },
     outreach_priority: { type: Type.INTEGER, description: "Chekki fit score. 5=perfect fit, 1=weak fit." },
     fit_reason: { type: Type.STRING, description: "One sentence explaining the priority score" },

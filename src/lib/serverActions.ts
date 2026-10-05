@@ -69,9 +69,29 @@ export async function searchNaver(query: string, start: number | string) {
 // Naver result — if the model alters naver_id, dedupe breaks (an
 // opted-out academy could be re-added and re-contacted); drifted
 // phone/address would silently corrupt data the model didn't actually derive.
+// Facts the listing doesn't state are left blank for a person to fill in
+// (Edit details), not guessed. The prompt says so; this enforces it. Naver
+// results never contain an email, so in practice every email is blanked.
+const AGE_CUE = /\d+\s*(세|살|학년)|만\s*\d|초등|중등|고등/;
+const CEFR_CUE = /\b(pre-a1|a1|a2|b1|b2|c1)\b|cefr/i;
+
+export function blankUnstated(item: NaverSearchResult, lead: EnrichedLead): EnrichedLead {
+  const text = `${item.title} ${item.category} ${item.description}`;
+  const email = (lead.email || "").trim();
+  const emailStated = !!email && text.toLowerCase().includes(email.toLowerCase());
+  return {
+    ...lead,
+    email: emailStated ? email : "",
+    email_confidence: emailStated ? "scraped" : "unknown",
+    student_age_range: AGE_CUE.test(text) ? lead.student_age_range : "",
+    approx_students: "",
+    cefr_levels_taught: CEFR_CUE.test(text) ? lead.cefr_levels_taught : [],
+  };
+}
+
 export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): EnrichedLead {
   return {
-    ...parsed,
+    ...blankUnstated(item, parsed),
     naver_id: getNaverId(item),
     phone: item.telephone,
     address_full: item.roadAddress || item.address,
