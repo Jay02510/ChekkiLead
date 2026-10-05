@@ -64,7 +64,7 @@ function main() {
   };
   console.log(`
 Retrieval coverage over ${entries.length - missingSnapshot} checked gold leads
-${line("email", "email", "gold email is among candidate_emails")}
+${line("email", "email", "gold email is among own-source candidate_emails")}
 ${line("hook", "hook", "a gold hook source URL was collected")}
 ${line("age", "age", "a gold age source URL was collected")}
 ${line("levels", "levels", "a gold levels source URL was collected")}

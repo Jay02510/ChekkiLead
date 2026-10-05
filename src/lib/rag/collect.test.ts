@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   coreName, isRelevantPost, unsupportedReason, toMobileBlogUrl, normalizeUrl, classifyBlogPost,
-  extractEmails, chunk, fetchPage, searchNaverBlogs, blogQueries, collectForLead, classifyFetchError, sourceIdFor,
+  extractEmails, chunk, fetchPage, searchNaverBlogs, blogQueries, collectForLead, isOwnSourceEmail, classifyFetchError, sourceIdFor,
   type CollectLead, type BlogPost, type FetchLike,
 } from './collect';
 
@@ -300,7 +300,7 @@ describe('collectForLead', () => {
     expect(byType('blog_own')).toHaveLength(1);
     expect(out.counts).toEqual({ blog_own: 1, blog_third_party: 1, website: 0, errors: 1 });
     expect(out.sources.find(s => s.status === 'error')!.error).toBe('unsupported_host:instagram.com');
-    expect(out.candidate_emails).toEqual([{ email: 'dybitcenter@gmail.com', sourceId: sourceIdFor(normalizeUrl('https://blog.naver.com/dybchoisun')) }]);
+    expect(out.candidate_emails).toEqual([{ email: 'dybitcenter@gmail.com', sourceId: sourceIdFor(normalizeUrl('https://blog.naver.com/dybchoisun')), sourceType: 'blog_own' }]);
   });
   it('marks snippets as via search and fetched pages as via page', async () => {
     const own = `<html><body><p>${'DYB최선어학원 분당 직영은 초등 영어 전문입니다. '.repeat(3)}</p></body></html>`;
@@ -340,6 +340,22 @@ describe('collectForLead', () => {
     expect(queries).toHaveLength(2);
     expect(queries[1]).toContain('query="DYB최선어학원 분당 직영" 분당구&');
     expect(out.sources.map(s => s.url).sort()).toEqual([1, 2, 3].map(n => `https://blog.naver.com/mom/${n}`));
+  });
+  it('tags each candidate email with its source type', async () => {
+    const f = (async () => searchOf([{ ...rel(1), description: '문의 blogger@gmail.com' }])) as FetchLike;
+    const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: f, sleep: async () => {} });
+    expect(out.candidate_emails).toEqual([{ email: 'blogger@gmail.com', sourceId: sourceIdFor(normalizeUrl('https://blog.naver.com/mom/1')), sourceType: 'blog_third_party' }]);
+    expect(isOwnSourceEmail(out.candidate_emails[0])).toBe(false);
+  });
+  it('prefers the own source when an address appears in both', async () => {
+    const own = `<html><body><p>${'DYB최선어학원 분당 직영 소개 문장입니다. '.repeat(3)} 문의 shared@dyb.kr</p></body></html>`;
+    const f = mockFetch({
+      'openapi.naver.com': () => searchOf([{ ...rel(1), description: 'shared@dyb.kr' }]),
+      'm.blog.naver.com/dybchoisun': html(own),
+    });
+    const out = await collectForLead(lead(), { fetchImpl: f, sleep: async () => {} });
+    expect(out.candidate_emails).toHaveLength(1);
+    expect(out.candidate_emails[0].sourceType).toBe('blog_own');
   });
   it('keeps results from one query when the other fails', async () => {
     let n = 0;

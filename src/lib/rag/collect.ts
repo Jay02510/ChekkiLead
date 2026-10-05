@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { parse } from "node-html-parser";
 import { stripHtml } from "../naverId.js";
-import type { EnrichedLead } from "../../types";
+import type { EnrichedLead, CandidateEmail } from "../../types";
 
 export type SourceType = "blog_own" | "blog_third_party" | "website";
 export type FetchLike = typeof fetch;
@@ -374,10 +374,13 @@ export function chunk(text: string, sourceId: string): Chunk[] {
 
 // ---------- per-lead collection ----------
 
+// Emails the academy published itself: its own blog or website.
+export const isOwnSourceEmail = (c: Pick<CandidateEmail, "sourceType">) => c.sourceType !== "blog_third_party";
+
 export interface CollectResult {
   sources: Source[];
   counts: { blog_own: number; blog_third_party: number; website: number; errors: number };
-  candidate_emails: { email: string; sourceId: string }[];
+  candidate_emails: CandidateEmail[];
 }
 
 export interface CollectDeps {
@@ -465,10 +468,15 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
     website: all.filter(s => s.status === "ok" && s.type === "website").length,
     errors: all.filter(s => s.status === "error").length,
   };
-  const candidate_emails: { email: string; sourceId: string }[] = [];
+  // One entry per address. If the same address shows up in a third-party post
+  // and an own page, the own source wins.
+  const candidate_emails: CandidateEmail[] = [];
   for (const s of all) {
     for (const email of s.emails) {
-      if (!candidate_emails.some(c => c.email === email)) candidate_emails.push({ email, sourceId: s.id });
+      const entry: CandidateEmail = { email, sourceId: s.id, sourceType: s.type };
+      const i = candidate_emails.findIndex(c => c.email === email);
+      if (i === -1) candidate_emails.push(entry);
+      else if (!isOwnSourceEmail(candidate_emails[i]) && isOwnSourceEmail(entry)) candidate_emails[i] = entry;
     }
   }
   return { sources: all, counts, candidate_emails };

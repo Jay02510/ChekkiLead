@@ -13,7 +13,7 @@ const fakeDb = () => {
 const result: CollectResult = {
   sources: [{ id: 'abc123', url: 'https://x.kr', type: 'website', title: 't', postdate: null, via: 'page', status: 'ok', error: null, text: 'hello', chunks: [{ id: 'abc123#0', text: 'hello' }], emails: ['a@x.kr'], fetched_at: 'now' }],
   counts: { blog_own: 0, blog_third_party: 0, website: 1, errors: 0 },
-  candidate_emails: [{ email: 'a@x.kr', sourceId: 'abc123' }],
+  candidate_emails: [{ email: 'a@x.kr', sourceId: 'abc123', sourceType: 'website' }],
 };
 
 describe('saveSources', () => {

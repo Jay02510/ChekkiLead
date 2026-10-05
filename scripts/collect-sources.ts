@@ -13,7 +13,7 @@ dotenv.config({ path: ".env.local", override: true });
 
 import { readFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
-import { collectForLead, type CollectResult } from "../src/lib/rag/collect";
+import { collectForLead, isOwnSourceEmail, type CollectResult } from "../src/lib/rag/collect";
 import { saveSources, LEADS_COLLECTION } from "../src/lib/rag/store";
 import type { EnrichedLead } from "../src/types";
 
@@ -57,7 +57,7 @@ async function main() {
     const result = await collectForLead(lead);
     results.push({ lead, result });
     const c = result.counts;
-    console.log(`${lead.institution_name_kr}: own ${c.blog_own}, third-party ${c.blog_third_party}, site ${c.website}, errors ${c.errors}, emails ${result.candidate_emails.map(e => e.email).join(", ") || "-"}`);
+    console.log(`${lead.institution_name_kr}: own ${c.blog_own}, third-party ${c.blog_third_party}, site ${c.website}, errors ${c.errors}, emails ${result.candidate_emails.map(e => `${e.email}${isOwnSourceEmail(e) ? "" : " (third-party)"}`).join(", ") || "-"}`);
     for (const s of result.sources.filter(s => s.status === "error")) console.log(`    error ${s.error}  ${s.url}`);
     if (write) await saveSources(db, lead.naver_id, result);
   }
@@ -83,7 +83,8 @@ async function main() {
 Coverage over ${results.length} leads${write ? "" : " (dry run)"}
   at least one usable source   ${pct(results.filter(r => usable(r.result)).length, results.length)}
   at least one blog_own source ${pct(results.filter(r => r.result.counts.blog_own > 0).length, results.length)}
-  at least one candidate email ${pct(results.filter(r => r.result.candidate_emails.length > 0).length, results.length)}
+  candidate email, own source  ${pct(results.filter(r => r.result.candidate_emails.some(isOwnSourceEmail)).length, results.length)}
+  candidate email, any source  ${pct(results.filter(r => r.result.candidate_emails.length > 0).length, results.length)}
   page fetch errors            ${pct(pageErrors.length, pageAttempts.length)}
 ${Object.entries(byReason).sort((a, b) => b[1] - a[1]).map(([r, n]) => `    ${r}: ${n}`).join("\n") || "    (none)"}
   not fetched (unsupported)    ${unsupported.length}${unsupported.length ? "  " + Object.entries(unsupportedByHost).map(([r, n]) => `${r.replace("unsupported_host:", "")} ${n}`).join(", ") : ""}

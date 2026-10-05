@@ -48,7 +48,16 @@ export interface EnrichedLead {
   // Phase 1 source collection (written server-side by scripts/collect-sources.ts).
   sources_collected_at?: string;
   source_counts?: { blog_own: number; blog_third_party: number; website: number; errors: number };
-  candidate_emails?: { email: string; sourceId: string }[];
+  candidate_emails?: CandidateEmail[];
+}
+
+// An address found in collected text. Third-party blog emails usually belong
+// to the blogger, not the academy, so later steps use only blog_own and
+// website entries (see isOwnSourceEmail in src/lib/rag/collect.ts).
+export interface CandidateEmail {
+  email: string;
+  sourceId: string;
+  sourceType: 'blog_own' | 'blog_third_party' | 'website';
 }
 
 export interface EmailDraft {

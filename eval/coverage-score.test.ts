@@ -16,8 +16,15 @@ describe('urlHit', () => {
 });
 
 describe('emailHit', () => {
+  const own = (email: string) => ({ email, sourceType: 'website' as const });
   it('ignores case and whitespace', () =>
-    expect(emailHit(' Info@Academy.kr ', [{ email: 'info@academy.kr' }])).toBe(true));
+    expect(emailHit(' Info@Academy.kr ', [own('info@academy.kr')])).toBe(true));
   it('is false when the address was never collected', () =>
-    expect(emailHit('a@x.kr', [{ email: 'b@x.kr' }])).toBe(false));
+    expect(emailHit('a@x.kr', [own('b@x.kr')])).toBe(false));
+  it('does not count an address found only in a third-party post', () =>
+    expect(emailHit('a@x.kr', [{ email: 'a@x.kr', sourceType: 'blog_third_party' }])).toBe(false));
+  it('counts an address from the academy own blog', () =>
+    expect(emailHit('a@x.kr', [{ email: 'a@x.kr', sourceType: 'blog_own' }])).toBe(true));
+  it('does not trust an entry with no sourceType', () =>
+    expect(emailHit('a@x.kr', [{ email: 'a@x.kr' } as any])).toBe(false));
 });
