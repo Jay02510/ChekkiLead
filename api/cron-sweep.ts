@@ -3,6 +3,7 @@ import { searchNaver, enrichLeadServer } from "../src/lib/serverActions.js";
 import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 import { isLikelyTarget } from "../src/lib/leadFilter.js";
 import { LEADS } from "../src/lib/collections.js";
+import { loadContactBlocklist } from "../src/lib/blocklist.js";
 
 // Runs the same search -> dedupe -> enrich -> save pipeline as the UI's
 // "Bulk Sweep" button, unattended, on Vercel Cron (see vercel.json).
@@ -53,8 +54,12 @@ export default async function handler(req: any, res: any) {
 
   const existing = await db.collection(LEADS).select().get();
   const seen = new Set(existing.docs.map(d => d.id));
+  // Academies already contacted (or thrown out) under the old pipeline. They
+  // live in the legacy collection, so deduping against leads_v2 alone would
+  // re-add them.
+  const blocklist = await loadContactBlocklist(db);
 
-  const stats = { queriesRun: 0, saved: 0, skipped: 0, filtered: 0, failed: 0 };
+  const stats = { queriesRun: 0, saved: 0, skipped: 0, blocked: 0, filtered: 0, failed: 0 };
   const log: string[] = [];
 
   for (const q of todaysQueries) {
@@ -78,6 +83,11 @@ export default async function handler(req: any, res: any) {
           continue;
         }
         seen.add(naverId);
+        if (blocklist.has(naverId)) {
+          stats.blocked++;
+          log.push(`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`);
+          continue;
+        }
         // Cheap category/title check first — don't spend a Gemini call on
         // adult test-prep schools, kindergartens or non-schools.
         if (!isLikelyTarget(item)) {

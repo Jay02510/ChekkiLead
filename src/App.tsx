@@ -7,7 +7,8 @@ import { LeadCard } from './components/LeadCard';
 import { EmailDraftCard } from './components/EmailDraftCard';
 import { QueueView, DbSort } from './components/QueueView';
 import { isBlockedFromSending, factView } from './lib/leadUi';
-import { LEADS, DEV_LEADS } from './lib/collections';
+import { LEADS, DEV_LEADS, LEGACY_LEADS } from './lib/collections';
+import { blocklistFromDocs } from './lib/blocklist';
 import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion } from 'firebase/firestore';
@@ -40,6 +41,10 @@ export default function App() {
 
   // Database State
   const [savedLeads, setSavedLeads] = useState<EnrichedLead[]>([]);
+  // naver_ids in the legacy collection that must never be enriched again
+  // (see src/lib/blocklist.ts). `null` means it hasn't loaded yet, which
+  // blocks enrichment rather than risking a second email to an opt-out.
+  const [blocklist, setBlocklist] = useState<Set<string> | null>(null);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [dbFilter, setDbFilter] = useState<string>('not_contacted');
   const [dbSort, setDbSort] = useState<DbSort>('priority');
@@ -52,13 +57,14 @@ export default function App() {
   const [bulkQueries, setBulkQueries] = useState('');
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [bulkLog, setBulkLog] = useState<string[]>([]);
-  const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, filtered: 0, failed: 0 });
+  const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, blocked: 0, filtered: 0, failed: 0 });
   const [matrixDistricts, setMatrixDistricts] = useState('강남구, 서초구, 송파구, 마포구, 분당구');
   const [matrixKeywords, setMatrixKeywords] = useState('영어유치원, 어린이영어학원, 초등영어학원, 키즈영어');
 
   useEffect(() => {
     // Always fetch saved leads on mount so we can cross-reference in search
     fetchSavedLeads();
+    fetchBlocklist();
   }, []);
 
   useEffect(() => {
@@ -83,6 +89,28 @@ export default function App() {
     } finally {
       setIsLoadingDb(false);
     }
+  };
+
+  const fetchBlocklist = async () => {
+    try {
+      await authReady;
+      const snap = await getDocs(collection(db, LEGACY_LEADS));
+      setBlocklist(blocklistFromDocs(snap.docs));
+    } catch (err) {
+      console.error('Failed to load the contact blocklist', err);
+      toast.error('Could not load the contact blocklist — enrichment is paused so no opted-out academy is contacted twice.');
+    }
+  };
+
+  // Returns the loaded blocklist, or null after telling the user why we won't
+  // enrich without it.
+  const requireBlocklist = (): Set<string> | null => {
+    if (!blocklist) {
+      toast.error('Contact blocklist not loaded yet — reload the page before enriching.');
+      fetchBlocklist();
+      return null;
+    }
+    return blocklist;
   };
 
   const handleSearch = async (e?: React.FormEvent, startIdx = 1) => {
@@ -135,10 +163,18 @@ export default function App() {
   const handleBatchEnrich = async () => {
     if (searchResults.length === 0) return;
 
+    const blocked = requireBlocklist();
+    if (!blocked) return;
+
     const unsaved = searchResults.filter(r => !savedIds.has(getNaverId(r)));
-    const toProcess = unsaved.filter(isLikelyTarget);
+    const allowed = unsaved.filter(r => !blocked.has(getNaverId(r)));
+    const toProcess = allowed.filter(isLikelyTarget);
     const skipped = searchResults.length - unsaved.length;
-    const filtered = unsaved.length - toProcess.length;
+    const blockedCount = unsaved.length - allowed.length;
+    const filtered = allowed.length - toProcess.length;
+    if (blockedCount > 0) {
+      toast.info(`Blocked ${blockedCount} result${blockedCount > 1 ? 's' : ''} already contacted or removed under the old pipeline`);
+    }
     if (skipped > 0) {
       toast.info(`Skipping ${skipped} result${skipped > 1 ? 's' : ''} already in your database`);
     }
@@ -187,10 +223,12 @@ export default function App() {
   const handleBulkSweep = async () => {
     const queries = bulkQueries.split('\n').map(q => q.trim()).filter(Boolean);
     if (queries.length === 0 || isBulkRunning) return;
+    const blocked = requireBlocklist();
+    if (!blocked) return;
 
     setIsBulkRunning(true);
     setBulkLog([]);
-    setBulkStats({ queriesDone: 0, queriesTotal: queries.length, saved: 0, skipped: 0, filtered: 0, failed: 0 });
+    setBulkStats({ queriesDone: 0, queriesTotal: queries.length, saved: 0, skipped: 0, blocked: 0, filtered: 0, failed: 0 });
 
     await authReady;
     const seen = new Set(savedIds);
@@ -218,6 +256,11 @@ export default function App() {
             continue;
           }
           seen.add(naverId);
+          if (blocked.has(naverId)) {
+            setBulkStats(s => ({ ...s, blocked: s.blocked + 1 }));
+            setBulkLog(l => [`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`, ...l]);
+            continue;
+          }
           if (!isLikelyTarget(item)) {
             setBulkStats(s => ({ ...s, filtered: s.filtered + 1 }));
             setBulkLog(l => [`Filtered: ${stripHtml(item.title)} (${item.category})`, ...l]);
@@ -263,6 +306,12 @@ export default function App() {
   };
 
   const handleSaveLead = async (lead: EnrichedLead) => {
+    const blocked = requireBlocklist();
+    if (!blocked) return;
+    if (blocked.has(lead.naver_id)) {
+      toast.error('This academy was already contacted or removed under the old pipeline — it can\'t be added again.');
+      return;
+    }
     try {
       await authReady;
       await setDoc(doc(db, LEADS_COLLECTION, lead.naver_id), { ...lead, saved_at: new Date().toISOString() });
@@ -760,6 +809,7 @@ export default function App() {
                         <span className="text-emerald-300">Saved {bulkStats.saved}</span>
                         <span className="text-zinc-400">Skipped {bulkStats.skipped}</span>
                         <span className="text-zinc-400">Filtered {bulkStats.filtered}</span>
+                        {bulkStats.blocked > 0 && <span className="text-amber-300">Blocked {bulkStats.blocked}</span>}
                         {bulkStats.failed > 0 && <span className="text-red-300">Failed {bulkStats.failed}</span>}
                       </div>
                       <div className="max-h-40 overflow-y-auto space-y-1 bg-black/30 rounded-lg border border-white/10 p-3" role="log">
