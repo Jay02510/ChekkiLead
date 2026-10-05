@@ -11,9 +11,12 @@ dotenv.config({ path: ".env.local", override: true });
 import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { GoogleGenAI, Type } from "@google/genai";
-import { enrichLeadServer } from "../src/lib/serverActions";
+import { enrichLeadServer, type UsageSink } from "../src/lib/serverActions";
+import { enrichGroundedServer } from "../src/lib/groundedEnrich";
+import { loadFrozen } from "./frozen";
+import { urlHit } from "./coverage-score";
 import type { EnrichedLead, EnrichMode, NaverSearchResult } from "../src/types";
-import { parseAgeRange, ageIoU, jaccard, sameEmail, isNotFound, claimsValue, ClaimField } from "./score";
+import { parseAgeRange, ageIoU, jaccard, sameEmail, isNotFound, claimsValue, factFor, citedFactCounts, citedSourceAgrees, rate, ClaimField } from "./score";
 
 interface GoldEntry {
   naver_id: string;
@@ -26,6 +29,7 @@ interface GoldEntry {
     cefr_levels: string[] | "not_found" | null;
     email: string | "not_found" | null;
     hook_fact: string | "not_found" | null;
+    sources?: { age?: string[]; levels?: string[]; email?: string[]; hook?: string[] };
   };
   naver_raw: NaverSearchResult;
 }
@@ -101,14 +105,28 @@ async function main() {
   };
   let failed = 0;
   const perLead: unknown[] = [];
+  // Grounded-mode metrics.
+  let cited = 0, citedFailed = 0, inferredClaims = 0;
+  const agreement = { agree: 0, total: 0 };
+  const nfPrecision = { agree: 0, total: 0 };
+  const usage = { calls: 0, input_tokens: 0, ms: 0 };
+  const onUsage: UsageSink = u => { usage.calls++; usage.input_tokens += u.input_tokens; };
 
   for (const entry of checked) {
     const { gold } = entry;
     let out: EnrichedLead | null = null;
     let error: string | undefined;
     try {
-      if (MODE !== "baseline") throw new Error(`mode ${MODE} is not wired up yet`);
-      out = await enrichLeadServer(entry.naver_raw);
+      const started = Date.now();
+      if (MODE === "baseline") {
+        out = await enrichLeadServer(entry.naver_raw, onUsage);
+      } else {
+        const frozen = loadFrozen(entry.naver_id);
+        if (!frozen) throw new Error(`no frozen sources for ${entry.name_kr} — run eval/snapshot-sources.ts`);
+        out = await enrichGroundedServer(entry.naver_raw, frozen.input, MODE, { onUsage });
+        frozen.saveEmbeddings();
+      }
+      usage.ms += Date.now() - started;
     } catch (err) {
       failed++;
       error = err instanceof Error ? err.message : String(err);
@@ -150,6 +168,24 @@ async function main() {
       row.hook = { predicted: out?.personalization_hook, gold: gold.hook_fact, verdict };
     }
 
+    // Grounded-mode metrics: verification, cited-source agreement, and whether
+    // the pipeline's not_found answers match the human's.
+    if (out?.facts) {
+      const c = citedFactCounts(out);
+      cited += c.cited; citedFailed += c.failed; inferredClaims += c.inferred;
+      row.facts = out.facts;
+      row.grounding = out.grounding;
+      const goldNotFound = { age: isNotFound(gold.age_min), levels: isNotFound(gold.cefr_levels), hook: isNotFound(gold.hook_fact) };
+      const goldChecked = { age: gold.age_min != null, levels: gold.cefr_levels != null, hook: gold.hook_fact != null };
+      for (const field of ["age", "levels", "hook"] as const) {
+        const fact = factFor(field, out)!;
+        const goldUrls = gold.sources?.[field === "levels" ? "levels" : field];
+        const agrees = citedSourceAgrees(fact, goldUrls, urlHit);
+        if (agrees !== null) { agreement.total++; if (agrees) agreement.agree++; }
+        if (fact.status === "not_found" && goldChecked[field]) { nfPrecision.total++; if (goldNotFound[field]) nfPrecision.agree++; }
+      }
+    }
+
     perLead.push(row);
     console.log(`${error ? "FAIL" : "ok  "} ${entry.name_kr}`);
     await new Promise(r => setTimeout(r, 400));
@@ -169,6 +205,18 @@ async function main() {
     // pipeline still filled in — invented facts. Lower is better.
     not_found_claim_rate: nfTotal ? nfClaimed / nfTotal : NaN,
     not_found_claims: { total: nfTotal, claimed: nfClaimed, by_field: notFound },
+    mode: MODE,
+    // Grounded modes only (NaN for baseline).
+    verification_failure_rate: rate(citedFailed, cited),
+    facts_cited: cited,
+    inferred_claims: inferredClaims,
+    cited_source_agreement: rate(agreement.agree, agreement.total),
+    cited_source_agreement_n: agreement.total,
+    not_found_precision: rate(nfPrecision.agree, nfPrecision.total),
+    not_found_precision_n: nfPrecision.total,
+    calls_per_lead: rate(usage.calls, checked.length - failed),
+    input_tokens_per_lead: rate(usage.input_tokens, checked.length - failed),
+    seconds_per_lead: rate(usage.ms / 1000, checked.length - failed),
     hook_supported: hookVerdicts.length ? count("supported") / hookVerdicts.length : NaN,
     hook_verdicts: {
       supported: count("supported"),
@@ -192,6 +240,10 @@ Pipeline ${MODE} @ ${sha}${dirty} — ${checked.length} leads, ${failed} failed
   Email exact match       ${pct(summary.email_exact_match)}  (n=${emailHits.length}, leads with a real email)
   "scraped" but wrong     ${falseScraped}
   Claims where nothing findable ${pct(summary.not_found_claim_rate)}  (${nfClaimed}/${nfTotal} not_found fields still filled; lower is better)
+  Verification failures   ${pct(summary.verification_failure_rate)}  (${citedFailed}/${cited} cited facts; grounded modes)
+  Cited-source agreement  ${pct(summary.cited_source_agreement)}  (n=${agreement.total})
+  not_found precision     ${pct(summary.not_found_precision)}  (n=${nfPrecision.total}; ${inferredClaims} inferred claims)
+  Per lead                ${Number.isNaN(summary.calls_per_lead) ? "n/a" : `${summary.calls_per_lead.toFixed(1)} calls, ${Math.round(summary.input_tokens_per_lead)} input tokens, ${summary.seconds_per_lead.toFixed(1)}s`}
   Hook supported          ${pct(summary.hook_supported)}  (${JSON.stringify(summary.hook_verdicts)})
 Full results: ${outPath}`);
 }
