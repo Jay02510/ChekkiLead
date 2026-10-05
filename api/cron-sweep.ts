@@ -4,6 +4,7 @@ import { getNaverId, stripHtml } from "../src/lib/naverId.js";
 import { isLikelyTarget } from "../src/lib/leadFilter.js";
 import { LEADS } from "../src/lib/collections.js";
 import { loadContactBlocklist } from "../src/lib/blocklist.js";
+import { buildQueries } from "../src/lib/searchPlan.js";
 
 // Runs the same search -> dedupe -> enrich -> save pipeline as the UI's
 // "Bulk Sweep" button, unattended, on Vercel Cron (see vercel.json).
@@ -30,14 +31,13 @@ import { loadContactBlocklist } from "../src/lib/blocklist.js";
 // jobs, not block on them here (see scripts/enrich-grounded.ts for the batch
 // path).
 //
-// ponytail: query list is a fixed constant, not a Firestore-backed
-// settings UI — edit this array and redeploy to change targets. Add a
-// settings doc/UI when that friction is actually felt, not before.
-const DISTRICTS = ["강남구", "서초구", "송파구", "마포구", "분당구"];
-const KEYWORDS = ["영어유치원", "어린이영어학원", "초등영어학원", "키즈영어"];
-const QUERIES = DISTRICTS.flatMap(d => KEYWORDS.map(k => `${d} ${k}`));
+// Queries come from src/lib/searchPlan.ts — one per 동, not per 구, because
+// Naver Local returns only a top 5 per query. The cursor rotates through the
+// whole list, which is now ~150 queries, so a full pass takes months at one
+// query per run. Raising QUERIES_PER_RUN is step 8's job, not a constant to
+// bump here without checking it against the 60s limit.
+const QUERIES = buildQueries();
 const QUERIES_PER_RUN = 1;
-const MAX_PAGES_PER_QUERY = 1;
 const CURSOR_DOC = "config/cron_sweep";
 
 export default async function handler(req: any, res: any) {
@@ -62,55 +62,50 @@ export default async function handler(req: any, res: any) {
   const stats = { queriesRun: 0, saved: 0, skipped: 0, blocked: 0, filtered: 0, failed: 0 };
   const log: string[] = [];
 
+  // One page per query: Naver Local Search has no usable paging, so start=6
+  // returns nothing new. Breadth comes from more neighbourhoods, not deeper
+  // pages.
   for (const q of todaysQueries) {
-    for (let page = 0; page < MAX_PAGES_PER_QUERY; page++) {
-      const start = page * 5 + 1;
-      let data: any;
+    let data: any;
+    try {
+      data = await searchNaver(q, 1);
+    } catch (err: any) {
+      log.push(`Search failed for "${q}": ${err.message}`);
+      continue;
+    }
+
+    for (const item of data.items || []) {
+      const naverId = getNaverId(item);
+      if (seen.has(naverId)) {
+        stats.skipped++;
+        continue;
+      }
+      seen.add(naverId);
+      if (blocklist.has(naverId)) {
+        stats.blocked++;
+        log.push(`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`);
+        continue;
+      }
+      // Cheap category/title check first — don't spend a Gemini call on
+      // adult test-prep schools or non-schools.
+      if (!isLikelyTarget(item)) {
+        stats.filtered++;
+        log.push(`Filtered: ${stripHtml(item.title)} (${item.category})`);
+        continue;
+      }
       try {
-        data = await searchNaver(q, start);
+        const enriched = await enrichLeadServer(item);
+        await db.collection(LEADS).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });
+        stats.saved++;
+        log.push(`Saved: ${stripHtml(item.title)}`);
       } catch (err: any) {
-        log.push(`Search failed for "${q}": ${err.message}`);
-        break;
+        stats.failed++;
+        log.push(`Failed: ${stripHtml(item.title)} — ${err.message}`);
       }
-
-      const items = data.items || [];
-      if (items.length === 0) break;
-
-      for (const item of items) {
-        const naverId = getNaverId(item);
-        if (seen.has(naverId)) {
-          stats.skipped++;
-          continue;
-        }
-        seen.add(naverId);
-        if (blocklist.has(naverId)) {
-          stats.blocked++;
-          log.push(`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`);
-          continue;
-        }
-        // Cheap category/title check first — don't spend a Gemini call on
-        // adult test-prep schools, kindergartens or non-schools.
-        if (!isLikelyTarget(item)) {
-          stats.filtered++;
-          log.push(`Filtered: ${stripHtml(item.title)} (${item.category})`);
-          continue;
-        }
-        try {
-          const enriched = await enrichLeadServer(item);
-          await db.collection(LEADS).doc(enriched.naver_id).set({ ...enriched, saved_at: new Date().toISOString() });
-          stats.saved++;
-          log.push(`Saved: ${stripHtml(item.title)}`);
-        } catch (err: any) {
-          stats.failed++;
-          log.push(`Failed: ${stripHtml(item.title)} — ${err.message}`);
-        }
-        await new Promise(r => setTimeout(r, 400));
-      }
-
-      if (start + 5 > (data.total || 0)) break;
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 400));
     }
     stats.queriesRun++;
+    await new Promise(r => setTimeout(r, 300));
   }
 
   await cursorRef.set({ nextIndex: (startIndex + QUERIES_PER_RUN) % QUERIES.length, lastRunAt: new Date().toISOString() });

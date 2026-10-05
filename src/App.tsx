@@ -9,6 +9,7 @@ import { QueueView, DbSort } from './components/QueueView';
 import { isBlockedFromSending, factView } from './lib/leadUi';
 import { LEADS, DEV_LEADS, LEGACY_LEADS } from './lib/collections';
 import { blocklistFromDocs } from './lib/blocklist';
+import { buildQueries, NEIGHBOURHOODS, KEYWORDS } from './lib/searchPlan';
 import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion } from 'firebase/firestore';
@@ -58,8 +59,6 @@ export default function App() {
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [bulkLog, setBulkLog] = useState<string[]>([]);
   const [bulkStats, setBulkStats] = useState({ queriesDone: 0, queriesTotal: 0, saved: 0, skipped: 0, blocked: 0, filtered: 0, failed: 0 });
-  const [matrixDistricts, setMatrixDistricts] = useState('강남구, 서초구, 송파구, 마포구, 분당구');
-  const [matrixKeywords, setMatrixKeywords] = useState('영어유치원, 어린이영어학원, 초등영어학원, 키즈영어');
 
   useEffect(() => {
     // Always fetch saved leads on mount so we can cross-reference in search
@@ -207,18 +206,14 @@ export default function App() {
     setIsBatchEnriching(false);
   };
 
+  // Queries come from src/lib/searchPlan.ts, so the UI sweep and the cron
+  // search the same neighbourhoods. You can still edit the list by hand before
+  // running it.
   const handleGenerateMatrix = () => {
-    const districts = matrixDistricts.split(',').map(d => d.trim()).filter(Boolean);
-    const keywords = matrixKeywords.split(',').map(k => k.trim()).filter(Boolean);
-    if (districts.length === 0 || keywords.length === 0) return;
-
-    const combos = districts.flatMap(d => keywords.map(k => `${d} ${k}`));
-    setBulkQueries(combos.join('\n'));
-    toast.success(`Generated ${combos.length} queries`);
+    const queries = buildQueries();
+    setBulkQueries(queries.join('\n'));
+    toast.success(`Filled ${queries.length} queries from the search plan`);
   };
-
-  // ponytail: 3 pages (15 results) per query cap — raise if a district search needs deeper paging
-  const BULK_MAX_PAGES = 3;
 
   const handleBulkSweep = async () => {
     const queries = bulkQueries.split('\n').map(q => q.trim()).filter(Boolean);
@@ -233,54 +228,52 @@ export default function App() {
     await authReady;
     const seen = new Set(savedIds);
 
+    // One page per query — Naver Local Search has no usable paging, so start=6
+    // returns nothing new. Breadth comes from more neighbourhoods instead.
     for (const q of queries) {
-      for (let page = 0; page < BULK_MAX_PAGES; page++) {
-        const start = page * 5 + 1;
-        let data: any;
-        try {
-          const res = await fetch(`/api/naver-search?query=${encodeURIComponent(q)}&start=${start}`);
-          data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Naver search failed');
-        } catch (err: any) {
-          setBulkLog(l => [`Search failed for "${q}": ${err.message}`, ...l]);
-          break;
-        }
-
-        const items: NaverSearchResult[] = data.items || [];
-        if (items.length === 0) break;
-
-        for (const item of items) {
-          const naverId = getNaverId(item);
-          if (seen.has(naverId)) {
-            setBulkStats(s => ({ ...s, skipped: s.skipped + 1 }));
-            continue;
-          }
-          seen.add(naverId);
-          if (blocked.has(naverId)) {
-            setBulkStats(s => ({ ...s, blocked: s.blocked + 1 }));
-            setBulkLog(l => [`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`, ...l]);
-            continue;
-          }
-          if (!isLikelyTarget(item)) {
-            setBulkStats(s => ({ ...s, filtered: s.filtered + 1 }));
-            setBulkLog(l => [`Filtered: ${stripHtml(item.title)} (${item.category})`, ...l]);
-            continue;
-          }
-          try {
-            const enriched = await enrichLead(item);
-            await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), { ...enriched, saved_at: new Date().toISOString() });
-            setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
-            setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
-          } catch (err: any) {
-            setBulkStats(s => ({ ...s, failed: s.failed + 1 }));
-            setBulkLog(l => [`Failed: ${stripHtml(item.title)} — ${err.message}`, ...l]);
-          }
-          await new Promise(res => setTimeout(res, 400)); // stay clear of Gemini rate limits
-        }
-
-        if (start + 5 > (data.total || 0)) break;
-        await new Promise(res => setTimeout(res, 300)); // stay clear of Naver rate limits
+      let data: any;
+      try {
+        const res = await fetch(`/api/naver-search?query=${encodeURIComponent(q)}&start=1`);
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Naver search failed');
+      } catch (err: any) {
+        setBulkLog(l => [`Search failed for "${q}": ${err.message}`, ...l]);
+        setBulkStats(s => ({ ...s, queriesDone: s.queriesDone + 1 }));
+        continue;
       }
+
+      const items: NaverSearchResult[] = data.items || [];
+
+      for (const item of items) {
+        const naverId = getNaverId(item);
+        if (seen.has(naverId)) {
+          setBulkStats(s => ({ ...s, skipped: s.skipped + 1 }));
+          continue;
+        }
+        seen.add(naverId);
+        if (blocked.has(naverId)) {
+          setBulkStats(s => ({ ...s, blocked: s.blocked + 1 }));
+          setBulkLog(l => [`Blocked: ${stripHtml(item.title)} (contacted or removed under the old pipeline)`, ...l]);
+          continue;
+        }
+        if (!isLikelyTarget(item)) {
+          setBulkStats(s => ({ ...s, filtered: s.filtered + 1 }));
+          setBulkLog(l => [`Filtered: ${stripHtml(item.title)} (${item.category})`, ...l]);
+          continue;
+        }
+        try {
+          const enriched = await enrichLead(item);
+          await setDoc(doc(db, LEADS_COLLECTION, enriched.naver_id), { ...enriched, saved_at: new Date().toISOString() });
+          setBulkStats(s => ({ ...s, saved: s.saved + 1 }));
+          setBulkLog(l => [`Saved: ${stripHtml(item.title)}`, ...l]);
+        } catch (err: any) {
+          setBulkStats(s => ({ ...s, failed: s.failed + 1 }));
+          setBulkLog(l => [`Failed: ${stripHtml(item.title)} — ${err.message}`, ...l]);
+        }
+        await new Promise(res => setTimeout(res, 400)); // stay clear of Gemini rate limits
+      }
+
+      await new Promise(res => setTimeout(res, 300)); // stay clear of Naver rate limits
       setBulkStats(s => ({ ...s, queriesDone: s.queriesDone + 1 }));
     }
 
@@ -772,19 +765,13 @@ export default function App() {
                   <ChevronRight className="w-4 h-4 text-zinc-400 transition-transform group-open:rotate-90" aria-hidden />
                 </summary>
                 <div className="px-5 sm:px-6 pb-6 space-y-3">
-                  <p className="text-sm text-zinc-400">One query per line. Anything already in your database is skipped.</p>
-                  <label className="block text-sm text-zinc-300">Districts
-                    <input type="text" value={matrixDistricts} onChange={(e) => setMatrixDistricts(e.target.value)} disabled={isBulkRunning} placeholder="Comma separated" className={`${inputClass} mt-1 font-mono text-xs`} />
-                  </label>
-                  <label className="block text-sm text-zinc-300">Keywords
-                    <input type="text" value={matrixKeywords} onChange={(e) => setMatrixKeywords(e.target.value)} disabled={isBulkRunning} placeholder="Comma separated" className={`${inputClass} mt-1 font-mono text-xs`} />
-                  </label>
+                  <p className="text-sm text-zinc-400">One query per line. Anything already in your database, or already contacted, is skipped.</p>
                   <button
                     onClick={handleGenerateMatrix}
                     disabled={isBulkRunning}
                     className={`w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 border border-white/10 text-sm font-medium rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50 ${focusRing}`}
                   >
-                    Fill queries from districts × keywords
+                    Fill from the search plan ({NEIGHBOURHOODS.length} 동 × {KEYWORDS.length} keywords)
                   </button>
                   <textarea
                     value={bulkQueries}
@@ -792,7 +779,7 @@ export default function App() {
                     disabled={isBulkRunning}
                     rows={5}
                     aria-label="Bulk queries"
-                    placeholder={'강남구 영어학원\n서초구 영어학원\n분당구 유치원'}
+                    placeholder={'대치동 영어유치원\n역삼동 키즈영어\n정자동 유치원'}
                     className={`${inputClass} font-mono`}
                   />
                   <button
