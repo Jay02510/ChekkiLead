@@ -9,7 +9,7 @@ import { englishSignal } from "./leadFilter.js";
 import { EnrichedLeadSchema, EmailDraftSchema } from "./validation.js";
 import type { EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
-function genaiClient() {
+export function genaiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured on the server.");
   return new GoogleGenAI({ apiKey });
@@ -17,7 +17,7 @@ function genaiClient() {
 
 // Gemini occasionally 503s under load ("model is currently experiencing high
 // demand") — one retry clears most of these instead of failing the lead outright.
-async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err: any) {
@@ -106,7 +106,7 @@ export function applyNaverTruth(item: NaverSearchResult, parsed: EnrichedLead): 
 }
 
 // Reports each Gemini call's token usage; the eval uses it for cost per lead.
-export type UsageSink = (usage: { input_tokens: number; output_tokens: number }) => void;
+export type UsageSink = (usage: { input_tokens: number; output_tokens: number; kind?: "generate" | "embed" }) => void;
 
 export async function enrichLeadServer(item: NaverSearchResult, onUsage?: UsageSink): Promise<EnrichedLead> {
   if (!item) throw Object.assign(new Error("item is required."), { status: 400 });

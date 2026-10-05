@@ -267,6 +267,115 @@ export const EMAIL_SCHEMA = {
   ]
 };
 
+// ---------- grounded enrichment ----------
+
+// Classification and scoring come from the frozen baseline text so the two
+// modes judge fit the same way; only the factual fields differ.
+const between = (from: string, to: string) => {
+  const a = BASELINE_SYSTEM_PROMPT.indexOf(from);
+  const b = BASELINE_SYSTEM_PROMPT.indexOf(to);
+  return BASELINE_SYSTEM_PROMPT.slice(a, b).trimEnd();
+};
+
+export const GROUNDED_SYSTEM_PROMPT = `You are a B2B lead enrichment agent for Chekki AI, a Korean EdTech brand.
+
+## CONTEXT
+You receive (1) the Naver Local Search listing for a Korean academy or
+kindergarten and (2) SOURCE CHUNKS: text collected from the academy's own blog
+or website and from third-party blog posts. Each chunk is labelled
+[chunk_id | source_type]. Return ONLY valid JSON matching the schema.
+
+## ABOUT CHEKKI AI / CHEKKI SCHOOLS
+- Core product: ${PRODUCT}
+- B2B program: ${CHEKKI_SCHOOLS}
+- This outreach targets hagwon directors/owners for a Chekki Schools pilot
+  or founding-partner slot — NOT a direct consumer app pitch.
+
+## YOUR TASKS
+${between("1. TRANSLATE:", "3. FACTS YOU CANNOT SEE")}
+
+3. FACTS FROM THE SOURCES. Answer age_range, approx_students, cefr_levels and
+   hook ONLY from the SOURCE CHUNKS, never from the institution type, the
+   district or what is typical. For each, return:
+   - status "sourced": a chunk states the value directly.
+   - status "inferred": you reasoned the value from a cited quote (e.g. levels
+     from "초등 1~3학년 파닉스반"). It still needs chunk_id and quote.
+   - status "not_found": nothing in the chunks supports a value. Then value,
+     chunk_id and quote must all be null.
+   chunk_id must be one of the given chunk ids. quote must be copied
+   word for word from that chunk (under 200 characters). Code checks every
+   quote; a quote that is not in the chunk is thrown away. When unsure, use
+   not_found.
+   - hook: one specific fact about the academy for the opening line of an
+     email. It must come from a chunk whose source_type is blog_own or
+     website. NEVER quote or paraphrase a third-party post: a director must not
+     receive an email quoting a parent's blog. If only third-party chunks
+     exist, the hook is not_found.
+   - age_range: the ages or grades the academy states, e.g. "만 3–5세".
+   - cefr_levels: levels the academy names, or inferred from a cited quote.
+     Use only Pre-A1, A1, A2, B1, B2, C1.
+
+${between("5. SCORE:", "6. NOTES:")}
+
+4. NOTES: one agent_notes sentence about anything useful for outreach (single
+   location vs chain, how to reach them, what was missing from the sources).
+
+${between("## ENGLISH SIGNAL", "## CRITICAL RULES")}
+
+## CRITICAL RULES
+- Strip ALL HTML from Naver titles.
+- Never estimate email, phone, address, website, student ages, student counts
+  or CEFR levels. Email is not your field: code sets it.
+- If institution_type is genuinely unclear, default to "hagwon".
+- institution_type, outreach_priority and fit_reason are your judgments, not
+  facts; they need no citation.`;
+
+const groundedFactSchema = (valueSchema: Record<string, unknown>) => ({
+  type: Type.OBJECT,
+  properties: {
+    value: { ...valueSchema, nullable: true },
+    status: { type: Type.STRING, format: "enum", enum: ["sourced", "inferred", "not_found"] },
+    chunk_id: { type: Type.STRING, description: "One of the given chunk ids. null when not_found.", nullable: true },
+    quote: { type: Type.STRING, description: "Exact words copied from that chunk, under 200 characters. null when not_found.", nullable: true },
+  },
+  required: ["value", "status", "chunk_id", "quote"],
+});
+
+export const GROUNDED_ENRICH_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    institution_name_en: { type: Type.STRING, description: "Clean English name, no HTML tags" },
+    institution_name_kr: { type: Type.STRING, description: "Clean Korean name, no HTML tags" },
+    institution_type: {
+      type: Type.STRING,
+      format: "enum",
+      enum: ["hagwon", "elementary_school", "kindergarten", "international_school", "tutoring_centre"],
+    },
+    city: { type: Type.STRING, description: "City in Korea e.g. Seoul, Busan, Incheon, Seongnam" },
+    district: { type: Type.STRING, description: "District (gu) e.g. Gangnam-gu, Mapo-gu" },
+    outreach_priority: { type: Type.INTEGER, description: "Chekki fit score. 5=perfect fit, 1=weak fit." },
+    fit_reason: { type: Type.STRING, description: "One sentence explaining the priority score" },
+    agent_notes: { type: Type.STRING, description: "Useful context for outreach, including what the sources did not say" },
+    facts: {
+      type: Type.OBJECT,
+      properties: {
+        age_range: groundedFactSchema({ type: Type.STRING, description: "Ages or grades as the source states them, e.g. 만 3–5세" }),
+        approx_students: groundedFactSchema({ type: Type.STRING, description: "Student count as the source states it" }),
+        cefr_levels: groundedFactSchema({
+          type: Type.ARRAY,
+          items: { type: Type.STRING, format: "enum", enum: ["Pre-A1", "A1", "A2", "B1", "B2", "C1"] },
+        }),
+        hook: groundedFactSchema({ type: Type.STRING, description: "One specific fact from an own-blog or website chunk" }),
+      },
+      required: ["age_range", "approx_students", "cefr_levels", "hook"],
+    },
+  },
+  required: [
+    "institution_name_en", "institution_name_kr", "institution_type", "city", "district",
+    "outreach_priority", "fit_reason", "agent_notes", "facts",
+  ],
+};
+
 // Existing callers use the baseline pair under its original names.
 export const SYSTEM_PROMPT = BASELINE_SYSTEM_PROMPT;
 export const ENRICH_SCHEMA = BASELINE_ENRICH_SCHEMA;
