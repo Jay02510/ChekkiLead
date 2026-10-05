@@ -49,3 +49,34 @@ export const sendBlockReason = (lead: EnrichedLead): string | null => {
 
 export const isBlockedFromSending = (lead: EnrichedLead) =>
   lead.email_confidence === 'unknown' || needsVerification(lead);
+
+export interface ContactEdit {
+  email: string;
+  phone: string;
+  website: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Turns the edit form into a Firestore update holding only what changed.
+// An address a person typed in is one they found on the academy's own page, so
+// it is stored as scraped and verified. Clearing the email makes it unknown.
+export function buildContactUpdate(
+  lead: Pick<EnrichedLead, 'email' | 'phone' | 'website'>,
+  edit: ContactEdit,
+): { updates: Record<string, string | null> } | { error: string } {
+  const email = edit.email.trim();
+  const phone = edit.phone.trim();
+  const website = edit.website.trim();
+  if (email && !EMAIL_RE.test(email)) return { error: 'That email address is not valid.' };
+
+  const updates: Record<string, string | null> = {};
+  if (email !== (lead.email || '')) {
+    updates.email = email;
+    updates.email_confidence = email ? 'scraped' : 'unknown';
+    updates.email_verification = email ? 'verified' : 'unverified';
+  }
+  if (phone !== (lead.phone || '')) updates.phone = phone;
+  if (website !== (lead.website || '')) updates.website = website || null;
+  return { updates };
+}

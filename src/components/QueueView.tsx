@@ -29,6 +29,7 @@ interface QueueViewProps {
   onBulkDelete: () => void;
   onStatusChange: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail: (naver_id: string) => void;
+  onEditContact: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
   onDelete: (naver_id: string) => void;
   onSendAndNext: (lead: EnrichedLead) => void;
   renderDraft: (lead: EnrichedLead) => React.ReactNode;
@@ -234,6 +235,7 @@ export function QueueView(p: QueueViewProps) {
                 hideStatus
                 onStatusChange={p.onStatusChange}
                 onVerifyEmail={p.onVerifyEmail}
+                onEditContact={p.onEditContact}
                 onDelete={p.onDelete}
               />
               {p.renderDraft(selected)}

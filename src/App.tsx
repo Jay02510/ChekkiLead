@@ -314,6 +314,20 @@ export default function App() {
     }
   };
 
+  const handleEditContact = async (naver_id: string, updates: Record<string, string | null>): Promise<boolean> => {
+    try {
+      await authReady;
+      await updateDoc(doc(db, LEADS_COLLECTION, naver_id), updates);
+      toast.success('Contact details saved');
+      fetchSavedLeads();
+      return true;
+    } catch (err) {
+      console.error("Failed to save contact details in Firebase", err);
+      toast.error('Failed to save contact details');
+      return false;
+    }
+  };
+
   const handleDeleteLead = async (naver_id: string) => {
     // Soft delete only — a hard delete removes the doc from the dedupe set,
     // so the next cron sweep or Bulk Sweep could re-add and re-contact an
@@ -562,6 +576,7 @@ export default function App() {
           onBulkDelete={handleBulkDelete}
           onStatusChange={handleStatusChange}
           onVerifyEmail={handleVerifyEmail}
+          onEditContact={handleEditContact}
           onDelete={handleDeleteLead}
           onSendAndNext={handleSendAndNext}
           renderDraft={renderEmailDraftSection}

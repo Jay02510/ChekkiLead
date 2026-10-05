@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { EnrichedLead, FirebaseStatus } from '../types';
-import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2 } from 'lucide-react';
-import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification } from '../lib/leadUi';
+import { MapPin, Phone, Globe, Mail, Users, GraduationCap, Star, Save, ShieldCheck, ShieldAlert, Trash2, Building2, Pencil } from 'lucide-react';
+import { STATUS_OPTIONS, institutionLabel, priorityTone, needsVerification, buildContactUpdate } from '../lib/leadUi';
 
 interface LeadCardProps {
   lead: EnrichedLead;
@@ -12,6 +12,8 @@ interface LeadCardProps {
   onStatusChange?: (naver_id: string, status: FirebaseStatus) => void;
   onVerifyEmail?: (naver_id: string) => void;
   onDelete?: (naver_id: string) => void;
+  // Saves hand-entered contact details; resolves true when the save worked.
+  onEditContact?: (naver_id: string, updates: Record<string, string | null>) => Promise<boolean>;
   key?: string | number;
 }
 
@@ -29,7 +31,23 @@ function Field({ icon: Icon, label, children }: { icon: React.ElementType; label
   );
 }
 
-export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete }: LeadCardProps) {
+export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact }: LeadCardProps) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ email: '', phone: '', website: '' });
+  const [formError, setFormError] = useState('');
+  useEffect(() => { setEditing(false); setFormError(''); }, [lead.naver_id]);
+
+  const startEdit = () => {
+    setForm({ email: lead.email || '', phone: lead.phone || '', website: lead.website || '' });
+    setFormError('');
+    setEditing(true);
+  };
+  const saveEdit = async () => {
+    const result = buildContactUpdate(lead, form);
+    if ('error' in result) { setFormError(result.error); return; }
+    if (Object.keys(result.updates).length === 0) { setEditing(false); return; }
+    if (await onEditContact?.(lead.naver_id, result.updates)) setEditing(false);
+  };
   const verifyNeeded = needsVerification(lead);
   const confidenceTone =
     lead.email_confidence === 'scraped' ? 'text-emerald-300'
@@ -89,6 +107,31 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
         )}
       </div>
 
+      {editing && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); saveEdit(); }}
+          className="px-5 sm:px-6 py-5 border-t border-white/10 space-y-3"
+        >
+          {([['email', 'Email', 'email'], ['phone', 'Phone', 'tel'], ['website', 'Website', 'url']] as const).map(([key, label, type]) => (
+            <label key={key} className="block">
+              <span className="text-xs text-zinc-400">{label}</span>
+              <input
+                type={type === 'url' ? 'text' : type}
+                value={form[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                className={`mt-1 w-full text-sm bg-black/30 text-zinc-100 border border-white/10 rounded-lg px-3 py-2 ${focusRing}`}
+              />
+            </label>
+          ))}
+          <p className="text-xs text-zinc-400">A typed email is saved as found on the academy's own page and counts as verified.</p>
+          {formError && <p role="alert" className="text-xs text-red-400">{formError}</p>}
+          <div className="flex gap-2">
+            <button type="submit" className={`px-4 py-1.5 text-sm font-semibold text-black bg-brand-orange hover:bg-orange-400 rounded-full ${focusRing}`}>Save</button>
+            <button type="button" onClick={() => setEditing(false)} className={`px-4 py-1.5 text-sm font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg ${focusRing}`}>Cancel</button>
+          </div>
+        </form>
+      )}
+
       <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 px-5 sm:px-6 py-5 border-t border-white/10">
         <Field icon={Mail} label="Email">
           <span className="block">{lead.email || '—'}</span>
@@ -123,6 +166,16 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           <span>{lead.city}, {lead.district}</span>
           <span>{lead.approx_students} students</span>
           <span className="font-mono text-xs self-center">{lead.naver_id}</span>
+          {isSaved && onEditContact && !editing && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className={`ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-orange-300 hover:text-orange-200 rounded ${focusRing}`}
+            >
+              <Pencil className="w-3.5 h-3.5" aria-hidden />
+              Edit contact
+            </button>
+          )}
         </div>
       </dl>
 
