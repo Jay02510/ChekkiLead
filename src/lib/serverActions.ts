@@ -21,6 +21,15 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (err: any) {
     const message = String(err?.message || "");
+    // A quota error isn't malformed output and a second call fails the same
+    // way — surface it as-is so the UI says what actually happened.
+    if (message.includes("RESOURCE_EXHAUSTED") || err?.status === 429) {
+      const wait = message.match(/retry in ([\d.]+)s/i)?.[1];
+      throw Object.assign(
+        new Error(`Gemini quota hit${wait ? ` — retry in ${Math.ceil(Number(wait))}s` : ""}. Free tier allows 5 requests/minute; enable billing on the API key or enrich fewer leads at once.`),
+        { status: 429, quota: true },
+      );
+    }
     if (message.includes("UNAVAILABLE") || message.includes("503")) {
       await new Promise(res => setTimeout(res, 1500));
       return await fn();
@@ -98,6 +107,7 @@ export async function enrichLeadServer(item: NaverSearchResult): Promise<Enriche
       const candidate = applyNaverTruth(item, JSON.parse(text));
       return EnrichedLeadSchema.parse(candidate) as EnrichedLead;
     } catch (err) {
+      if ((err as any)?.quota) throw err;
       lastError = err;
     }
   }
@@ -149,6 +159,7 @@ export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraf
       const candidate = EmailDraftSchema.parse(JSON.parse(text)) as EmailDraft;
       return applyEmailCompliance(candidate);
     } catch (err) {
+      if ((err as any)?.quota) throw err;
       lastError = err;
     }
   }
