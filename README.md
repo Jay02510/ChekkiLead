@@ -20,6 +20,38 @@ Naver Local Search → Gemini enrichment → Firebase-backed lead database for C
    `npm run dev`
 4. Open http://localhost:3000
 
+## How a lead gets made (v2)
+
+```
+searchPlan.ts          152 queries: 38 동 × 4 keywords, each prefixed with its 구
+   ↓                   (a 구-only query returns the same top 5 big academies;
+                        a bare 동 name is ambiguous across cities)
+cron-sweep             Naver Local, 12 queries/run. Dedupe → contact blocklist
+   ↓                   → isLikelyTarget. Saves what Naver returned, nothing else:
+                        enrichment_status "queued", no Gemini call.
+cron-enrich            2 queued leads/run, stops at 45s. One Gemini call each.
+   ↓
+collect-sources        Their own site and blog, plus third-party blog results.
+   ↓                   800-char chunks, tagged blog_own / blog_third_party / website.
+grounded enrichment    Answers only from the chunks, citing a chunk id and a
+   ↓                   verbatim quote per fact. verifyFacts re-checks every quote
+                        inside the cited chunk in plain code; a fact that fails
+                        verification is dropped, not downgraded.
+Review queue           Leads whose Naver listing didn't name English wait for a
+   ↓                   human (englishSignal, computed in code). They cannot be
+                        marked sent.
+drafting               Only from a hook that passed verification or that a person
+                        typed in. No hook, no draft. (광고) prefix and the
+                        정보통신망법 footer are applied in code, not by the model.
+```
+
+Two collections, by design:
+
+- **`leads`** — read-only history. Everything the original pipeline produced. It is the contact blocklist (anything sent, replied, bounced, opted out or deleted is never contacted again, per 정보통신망법 Article 50), it holds the eval's gold leads and their collected sources, and it is the "before" half of any comparison. Client writes are off in `firestore.rules`; only Admin SDK scripts touch it.
+- **`leads_v2`** — the active collection. Only the pipeline above writes to it. `leads_v2_dev` is the same thing for `npm run dev`.
+
+Names live in `src/lib/collections.ts` so client and server can't disagree.
+
 ## Architecture notes
 
 - All external API calls (Naver, Gemini) happen server-side in `server.ts`. The client never holds an API key.
@@ -29,7 +61,7 @@ Naver Local Search → Gemini enrichment → Firebase-backed lead database for C
 
 ## Data provenance
 
-Every saved lead mixes real data from Naver with fields Gemini estimates. Before relying on a field, know which kind it is:
+Every saved lead mixes real data from Naver with fields a model produced. Before relying on a field, know which kind it is. **The "model estimates" row below describes `leads` (history) and the `baseline` path — a grounded lead in `leads_v2` carries a `facts` object instead, where every value has a status, a cited chunk, a verbatim quote and a code-checked verification result.**
 
 - **From Naver (ground truth, never model-estimated):** `institution_name_*` (source name, HTML-stripped), `phone`, `address_full`, `naver_id`. `enrichLeadServer` overwrites these from the raw Naver result after Gemini responds, specifically so the model can't drift them (see `applyNaverTruth` in `src/lib/serverActions.ts`).
 - **Model estimates (Gemini, not verified against any external source):** `institution_type`, `student_age_range`, `approx_students`, `cefr_levels_taught`, `outreach_priority`, `fit_reason`, `agent_notes`, `personalization_hook`, and `email` whenever `email_confidence` isn't `scraped`.
@@ -49,3 +81,26 @@ Gold fields have three states:
 **email_rule:** a gold `email` must be specific to that branch or academy, and published by it. A company-wide address such as `ybmgroup@ybm.co.kr` doesn't count. If only a company-wide address exists, mark `email` as `"not_found"`.
 
 Gold answers are never drafted by a model. Grading the pipeline against another model's reading of the same pages would measure agreement, not truth.
+
+### Modes compared
+
+| mode | what it is |
+|---|---|
+| `baseline_v0` | the original prompt, restored byte-for-byte from commit `22bc257`. Told to "always provide something" and to "construct the most likely email". Kept only to measure what it invented. |
+| `baseline` | that prompt after the guessing was removed. The control. |
+| `grounded_full` | answers from the collected chunks, up to 40,000 characters, own sources first. |
+| `grounded_retrieval` | answers from the top 6 chunks per field query, retrieved by embedding (`gemini-embedding-001`, 256 dims, cosine in plain TypeScript). |
+
+### Results
+
+Not yet measured. The eval needs Gemini billing on (the free tier's 5 requests/minute cannot finish a run) and every gold entry hand-checked.
+
+| metric | `baseline_v0` | `baseline` | `grounded_full` | `grounded_retrieval` |
+|---|---|---|---|---|
+| age accuracy (IoU) | — | — | — | — |
+| CEFR levels (Jaccard) | — | — | — | — |
+| email exact match | — | — | — | — |
+| claims where nothing findable | — | — | — | — |
+| verification failure rate | n/a | n/a | — | — |
+
+`DEFAULT_GROUNDED_MODE` in `src/lib/rag/ground.ts` is currently `grounded_full` — a placeholder, not a measured winner. If neither grounded mode beats `baseline` on accuracy, the honest move is to keep `baseline` and say so here.
