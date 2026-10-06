@@ -10,3 +10,6 @@ coverage/
 
 # Frozen eval sources: third-party blog text, not for this public repo
 eval/sources/
+
+# Firestore exports taken before a destructive script: production contact data
+backups/
