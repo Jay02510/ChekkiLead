@@ -361,7 +361,7 @@ export default function App() {
     try {
       await authReady;
       // Re-enrichment keeps whatever was typed in by hand.
-      const typed = ['email', 'student_age_range', 'approx_students'].filter(k => k in updates);
+      const typed = ['email', 'student_age_range', 'approx_students', 'personalization_hook'].filter(k => k in updates);
       await updateDoc(doc(db, LEADS_COLLECTION, naver_id), typed.length ? { ...updates, manual_fields: arrayUnion(...typed) } : updates);
       toast.success('Contact details saved');
       fetchSavedLeads();

@@ -57,6 +57,7 @@ export interface ContactEdit {
   website: string;
   student_age_range: string;
   approx_students: string;
+  personalization_hook: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,7 +66,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // An address a person typed in is one they found on the academy's own page, so
 // it is stored as scraped and verified. Clearing the email makes it unknown.
 export function buildContactUpdate(
-  lead: Pick<EnrichedLead, 'email' | 'phone' | 'website' | 'student_age_range' | 'approx_students'>,
+  lead: Pick<EnrichedLead, 'email' | 'phone' | 'website' | 'student_age_range' | 'approx_students' | 'personalization_hook'>,
   edit: ContactEdit,
 ): { updates: Record<string, string | null> } | { error: string } {
   const email = edit.email.trim();
@@ -85,6 +86,10 @@ export function buildContactUpdate(
   const students = edit.approx_students.trim();
   if (age !== (lead.student_age_range || '')) updates.student_age_range = age;
   if (students !== (lead.approx_students || '')) updates.approx_students = students;
+  // A hook typed in by hand is what unblocks drafting for a school whose own
+  // pages say nothing specific (see hookForDraft).
+  const hook = edit.personalization_hook.trim();
+  if (hook !== (lead.personalization_hook || '')) updates.personalization_hook = hook;
   return { updates };
 }
 

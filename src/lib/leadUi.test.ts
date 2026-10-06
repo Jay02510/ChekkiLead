@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { buildContactUpdate, sendBlockReason, isBlockedFromSending, factView } from './leadUi';
 import type { EnrichedLead } from '../types';
 
-const lead = { email: 'guess@naver.com', phone: '', website: null as string | null, student_age_range: '', approx_students: '' };
-const edit = { email: 'guess@naver.com', phone: '', website: '', student_age_range: '', approx_students: '' };
+const lead = { email: 'guess@naver.com', phone: '', website: null as string | null, student_age_range: '', approx_students: '', personalization_hook: '' };
+const edit = { email: 'guess@naver.com', phone: '', website: '', student_age_range: '', approx_students: '', personalization_hook: '' };
 
 describe('buildContactUpdate', () => {
   it('returns nothing when nothing changed', () =>
@@ -30,6 +30,13 @@ describe('buildContactUpdate ages', () => {
   it('saves hand-entered ages and student count', () =>
     expect(buildContactUpdate(lead, { ...edit, student_age_range: '만 3–5세', approx_students: '40' })).toEqual({
       updates: { student_age_range: '만 3–5세', approx_students: '40' },
+    }));
+});
+
+describe('buildContactUpdate hook', () => {
+  it('saves a hand-typed hook, which is what lets a thin lead be drafted', () =>
+    expect(buildContactUpdate(lead, { ...edit, personalization_hook: '원장님이 직접 영어 동화 수업을 하십니다' })).toEqual({
+      updates: { personalization_hook: '원장님이 직접 영어 동화 수업을 하십니다' },
     }));
 });
 

@@ -46,6 +46,9 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
         <div className="flex items-center gap-3">
           <Mail className="w-5 h-5 text-orange-300" aria-hidden />
           <h3 className="text-lg font-semibold text-zinc-100 font-display">Outreach email</h3>
+          {draft.draft_status === 'needs_review' && (
+            <span className="text-xs font-medium text-amber-300 bg-amber-400/10 border border-amber-400/20 rounded px-2 py-0.5">Needs your review</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {onRegenerate && (
@@ -69,6 +72,22 @@ export function EmailDraftCard({ draft, leadEmail, onRegenerate, isGenerating }:
       </div>
 
       <div className="p-5 sm:p-6 space-y-5">
+        {draft.hook_used && (
+          <div className={`rounded-xl border p-3 text-xs ${draft.hook_verification === 'failed' ? 'border-amber-400/30 bg-amber-400/5' : 'border-white/10 bg-white/5'}`}>
+            <p className="font-semibold text-zinc-200">
+              {draft.hook_verification === 'failed'
+                ? 'The draft did not use the hook it was given — read sentence one before sending.'
+                : 'Opening built from:'}
+            </p>
+            <p className="mt-1 text-zinc-300 font-korean break-keep">{draft.hook_used.text}</p>
+            <p className="mt-1 text-zinc-500">
+              {draft.hook_used.source_type === 'manual' ? 'You typed this in.' : `From their own ${draft.hook_used.source_type}`}
+              {draft.hook_used.source_url && (
+                <> — <a href={draft.hook_used.source_url} target="_blank" rel="noreferrer" className="text-orange-300 hover:text-orange-200 underline">source</a></>
+              )}
+            </p>
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">

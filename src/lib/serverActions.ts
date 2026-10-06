@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT, EMAIL_SYSTEM_PROMPT, ENRICH_SCHEMA, EMAIL_SCHEMA, BASELINE_V0_SYSTEM_PROMPT, BASELINE_V0_ENRICH_SCHEMA } from "./geminiPrompts.js";
 import { getNaverId } from "./naverId.js";
 import { englishSignal } from "./leadFilter.js";
+import { hookForDraft, hookInstruction, draftUsesHook } from "./groundedDraft.js";
 import { EnrichedLeadSchema, EmailDraftSchema } from "./validation.js";
 import type { BaselineMode, EnrichedLead, EmailDraft, NaverSearchResult } from "../types";
 
@@ -183,6 +184,18 @@ export function applyEmailCompliance(draft: EmailDraft): EmailDraft {
 export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraft> {
   if (!lead) throw Object.assign(new Error("lead is required."), { status: 400 });
 
+  // A lead enriched from sources may only be drafted from a verified hook.
+  // Leads that predate grounding keep the old path: their hook came from the
+  // Naver listing, which is thin but at least isn't invented.
+  const grounded = !!lead.facts;
+  const hook = grounded ? hookForDraft(lead) : null;
+  if (grounded && !hook) {
+    throw Object.assign(
+      new Error(`No verified hook for ${lead.institution_name_kr}. Collect sources, re-enrich, or type a hook in yourself — a generic opener is not worth sending.`),
+      { status: 422 },
+    );
+  }
+
   const ai = genaiClient();
   let lastError: unknown;
 
@@ -192,7 +205,7 @@ export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraf
         model: "gemini-3.6-flash",
         contents: JSON.stringify(lead),
         config: {
-          systemInstruction: EMAIL_SYSTEM_PROMPT,
+          systemInstruction: hook ? `${EMAIL_SYSTEM_PROMPT}\n\n${hookInstruction(hook)}` : EMAIL_SYSTEM_PROMPT,
           responseMimeType: "application/json",
           responseSchema: EMAIL_SCHEMA,
         },
@@ -201,7 +214,16 @@ export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraf
       const text = response.text;
       if (!text) throw new Error("No response from Gemini.");
       const candidate = EmailDraftSchema.parse(JSON.parse(text)) as EmailDraft;
-      return applyEmailCompliance(candidate);
+      // Compliance last, so the footer's own wording can't be mistaken for the
+      // draft having used the hook.
+      const checked: EmailDraft = hook
+        ? {
+            ...candidate,
+            hook_used: { text: hook.text, source_type: hook.source_type, source_url: hook.source_url },
+            hook_verification: draftUsesHook(candidate, hook) ? "passed" : "failed",
+          }
+        : candidate;
+      return { ...applyEmailCompliance(checked), draft_status: "needs_review" };
     } catch (err) {
       if ((err as any)?.quota) throw err;
       lastError = err;

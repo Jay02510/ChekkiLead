@@ -129,4 +129,11 @@ export interface EmailDraft {
   institution_type_targeted: string;
   word_count_kr?: number;
   word_count_en?: number;
+  // A draft is never send-ready on its own: a person reads it first. Set in
+  // code (see generateEmailServer), never by the model.
+  draft_status?: 'needs_review';
+  // The fact the opener was built from, and whether the draft actually used
+  // it — checked in plain code by draftUsesHook, not asked of the model.
+  hook_used?: { text: string; source_type: string | null; source_url: string | null };
+  hook_verification?: 'passed' | 'failed';
 }

@@ -79,12 +79,12 @@ function FactsPanel({ lead }: { lead: EnrichedLead }) {
 export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, onVerifyEmail, onDelete, onEditContact, onReview, onReenrich }: LeadCardProps) {
   const [reenriching, setReenriching] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ email: '', phone: '', website: '', student_age_range: '', approx_students: '' });
+  const [form, setForm] = useState({ email: '', phone: '', website: '', student_age_range: '', approx_students: '', personalization_hook: '' });
   const [formError, setFormError] = useState('');
   useEffect(() => { setEditing(false); setFormError(''); }, [lead.naver_id]);
 
   const startEdit = () => {
-    setForm({ email: lead.email || '', phone: lead.phone || '', website: lead.website || '', student_age_range: lead.student_age_range || '', approx_students: lead.approx_students || '' });
+    setForm({ email: lead.email || '', phone: lead.phone || '', website: lead.website || '', student_age_range: lead.student_age_range || '', approx_students: lead.approx_students || '', personalization_hook: lead.personalization_hook || '' });
     setFormError('');
     setEditing(true);
   };
@@ -187,7 +187,7 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
           onSubmit={(e) => { e.preventDefault(); saveEdit(); }}
           className="px-5 sm:px-6 py-5 border-t border-white/10 space-y-3"
         >
-          {([['email', 'Email', 'email'], ['phone', 'Phone', 'tel'], ['website', 'Website', 'url'], ['student_age_range', 'Student ages (e.g. 만 3–5세)', 'text'], ['approx_students', 'Number of students', 'text']] as const).map(([key, label, type]) => (
+          {([['email', 'Email', 'email'], ['phone', 'Phone', 'tel'], ['website', 'Website', 'url'], ['student_age_range', 'Student ages (e.g. 만 3–5세)', 'text'], ['approx_students', 'Number of students', 'text'], ['personalization_hook', 'Email hook — one specific thing you verified yourself', 'text']] as const).map(([key, label, type]) => (
             <label key={key} className="block">
               <span className="text-xs text-zinc-400">{label}</span>
               <input
