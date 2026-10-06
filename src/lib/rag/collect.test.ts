@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   coreName, isRelevantPost, unsupportedReason, toMobileBlogUrl, normalizeUrl, classifyBlogPost,
-  extractEmails, chunk, fetchPage, searchNaverBlogs, blogQueries, collectForLead, isOwnSourceEmail, classifyFetchError, sourceIdFor,
+  extractEmails, chunk, fetchPage, searchNaverBlogs, pickInternalLinks, blogQueries, collectForLead, isOwnSourceEmail, classifyFetchError, sourceIdFor,
   type CollectLead, type BlogPost, type FetchLike,
 } from './collect';
 
@@ -186,6 +186,19 @@ describe('fetchPage', () => {
     <p>저희 학원은 초등학생을 위한 영어 전문 학원입니다. 문의는 info@academy.kr 로 주세요.</p>
     <a href="mailto:admin%40academy.kr">메일</a></body></html>`;
 
+  // The 500KB read cap can land inside a <script>, leaving it unterminated —
+  // the parser then stops treating it as a script and its contents become
+  // "page text" (삼성유치원: 100,000 characters of Wix config for a page with
+  // 402 characters of Korean on it).
+  it('drops a script whose closing tag was cut off by the size cap', async () => {
+    const truncated = `<html><head><title>유치원</title></head><body><p>저희 유치원은 만 3세부터 만 5세까지의 유아를 대상으로 놀이 중심 교육과정을 운영하고 있습니다.</p>
+      <script>window.config={"specs.membersArea.ShowHeadingLevelSettings":"true","sentryDsn":"https://abc@sentry.io/1865790"`;
+    const out = await fetchPage('https://kinder.kr/', mockFetch({ 'kinder.kr': html(truncated) }));
+    expect(out.text).toContain('만 3세부터');
+    expect(out.text).not.toContain('ShowHeadingLevelSettings');
+    expect(out.emails).toEqual([]);
+  });
+
   it('extracts text and emails, dropping nav and script', async () => {
     const out = await fetchPage('https://academy.kr/', mockFetch({ 'academy.kr': html(page) }));
     expect(out.title).toBe('학원 소개');
@@ -367,5 +380,38 @@ describe('collectForLead', () => {
     const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: mockFetch({ 'openapi.naver.com': html('', 429) }), sleep: async () => {} });
     expect(out.counts.errors).toBe(1);
     expect(out.sources[0].error).toContain('blog_search_failed');
+  });
+});
+
+describe('pickInternalLinks', () => {
+  const page = (links: { url: string; text: string }[]) => ({ text: '', title: '', emails: [], links });
+
+  it('follows the pages a kindergarten keeps its real content on', () => {
+    expect(pickInternalLinks(page([
+      { url: '/', text: '홈' },
+      { url: '/curriculum', text: '교육과정' },
+      { url: '/admission.html', text: '입학안내' },
+    ]), 'http://school.kr')).toEqual(['http://school.kr/curriculum', 'http://school.kr/admission.html']);
+  });
+
+  it('never leaves the site, and ignores mailto and javascript links', () => {
+    expect(pickInternalLinks(page([
+      { url: 'https://blog.naver.com/x', text: '교육과정' },
+      { url: 'mailto:a@b.kr', text: '입학안내' },
+      { url: 'javascript:void(0)', text: '교육과정' },
+    ]), 'http://school.kr')).toEqual([]);
+  });
+
+  it('skips links back to the page it came from, hash and all', () => {
+    expect(pickInternalLinks(page([
+      { url: 'http://school.kr/#프로그램', text: '프로그램' },
+      { url: '/about', text: '유치원 소개' },
+    ]), 'http://school.kr')).toEqual(['http://school.kr/about']);
+  });
+
+  it('stops at three — these are requests against someone else\'s server', () => {
+    expect(pickInternalLinks(page(
+      ['교육과정', '입학안내', '프로그램', '시설안내', '활동'].map((t, i) => ({ url: `/p${i}`, text: t })),
+    ), 'http://school.kr')).toHaveLength(3);
   });
 });

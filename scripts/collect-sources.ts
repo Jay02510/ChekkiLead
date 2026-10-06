@@ -47,10 +47,18 @@ async function main() {
   const todo: EnrichedLead[] = [];
   for (const d of snap.docs) {
     const lead = d.data() as EnrichedLead;
-    if (lead.deleted) { skipped.deleted++; continue; }
-    if (lead.non_target) { skipped.nonTarget++; continue; }
-    if (lead.firebase_status === "opted_out") { skipped.optedOut++; continue; }
     if (goldIds && !goldIds.has(lead.naver_id)) { skipped.notGold++; continue; }
+    // In --gold mode, membership of the gold set is the only selector that
+    // matters. A third of the gold leads are soft-deleted or flagged
+    // non-target in Firestore, and skipping those left them on source text
+    // collected by an older collector — 삼성유치원's "page" was 100,000
+    // characters of Wix JavaScript config. Gold leads are never contacted, so
+    // these flags say nothing about whether they should be re-read.
+    if (!goldOnly) {
+      if (lead.deleted) { skipped.deleted++; continue; }
+      if (lead.non_target) { skipped.nonTarget++; continue; }
+      if (lead.firebase_status === "opted_out") { skipped.optedOut++; continue; }
+    }
     if (!force && lead.sources_collected_at && Date.now() - Date.parse(lead.sources_collected_at) < RECENT_MS) { skipped.recent++; continue; }
     todo.push(lead);
   }

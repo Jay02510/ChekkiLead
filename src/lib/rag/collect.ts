@@ -270,6 +270,37 @@ export interface FetchedPage {
   text: string;
   title: string;
   emails: string[];
+  // Same-site links found on the page, for pickInternalLinks.
+  links: { url: string; text: string }[];
+}
+
+// A Korean kindergarten's homepage is a welcome message: the ages it takes,
+// the programmes it runs and the fees live one click away, behind these words.
+// 삼성유치원's homepage is 402 characters of real text; everything the eval
+// asks about is on 교육과정 and 입학안내.
+const INTERNAL_LINK_RE = /교육|과정|프로그램|입학|모집|소개|안내|특색|활동|시설|원훈|curriculum|program|admission|about/i;
+
+// Up to `max` same-host pages worth reading, in page order, never the page we
+// came from. Kept small on purpose: these are extra HTTP requests against
+// someone else's server on every collection run.
+export function pickInternalLinks(page: FetchedPage, from: string, max = 3): string[] {
+  let base: URL;
+  try { base = new URL(from); } catch { return []; }
+  const seen = new Set([base.href.replace(/#.*$/, "")]);
+  const out: string[] = [];
+  for (const link of page.links) {
+    if (out.length >= max) break;
+    let url: URL;
+    try { url = new URL(link.url, base); } catch { continue; }
+    if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+    if (url.host !== base.host) continue;
+    url.hash = "";
+    if (seen.has(url.href)) continue;
+    if (!INTERNAL_LINK_RE.test(`${decodeURIComponent(url.pathname)} ${link.text}`)) continue;
+    seen.add(url.href);
+    out.push(url.href);
+  }
+  return out;
 }
 
 // Throws an Error whose message is the failure reason (http_403, timeout,
@@ -297,17 +328,35 @@ export async function fetchPage(url: string, fetchImpl: FetchLike = fetch): Prom
     throw new Error(classifyFetchError(err));
   }
 
+  // Scripts go before parsing, not after. A page larger than MAX_PAGE_BYTES is
+  // truncated mid-tag, and a <script> whose closing tag was cut off stops
+  // looking like a script to the parser: 삼성유치원's 560KB Wix homepage came
+  // back as 100,000 characters of bundler config instead of its 402 characters
+  // of Korean. The last rule drops exactly that unterminated tail.
+  html = html
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style\s*>/gi, " ")
+    .replace(/<(script|style)\b[\s\S]*$/i, " ")
+    // node-html-parser keeps the doctype as a text node, so every page's text
+    // used to start with "<!DOCTYPE html>".
+    .replace(/<!DOCTYPE[^>]*>/i, " ");
+
   const root = parse(html);
   const mailtos = root
     .querySelectorAll("a[href^='mailto:']")
     .map(a => a.getAttribute("href") || "")
     .join(" ");
   const title = root.querySelector("title")?.text.trim() || "";
+  // Read before nav is stripped: the links to 교육과정 and 입학안내 are in it.
+  const links = root.querySelectorAll("a[href]").map(a => ({
+    url: a.getAttribute("href") || "",
+    text: a.text.replace(/\s+/g, " ").trim().slice(0, 100),
+  }));
   root.querySelectorAll("script, style, nav, noscript").forEach(n => n.remove());
   const text = root.text.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
   if (text.length < 50) throw new Error("empty_page");
 
-  return { text, title, emails: extractEmails(`${text} ${mailtos}`) };
+  return { text, title, emails: extractEmails(`${text} ${mailtos}`), links };
 }
 
 // ---------- emails ----------
@@ -455,6 +504,19 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
     try {
       const page = await fetchPage(url, fetchImpl);
       add({ url, type, title: page.title, postdate: null, via: "page", status: "ok", error: null, text: page.text, emails: page.emails });
+      // A blog post is one page by definition; a school site keeps what we
+      // actually need a click in.
+      if (!own) {
+        for (const inner of pickInternalLinks(page, url)) {
+          await sleep(500);
+          try {
+            const sub = await fetchPage(inner, fetchImpl);
+            add({ url: inner, type, title: sub.title, postdate: null, via: "page", status: "ok", error: null, text: sub.text, emails: sub.emails });
+          } catch (err: any) {
+            add({ url: inner, type, title: "", postdate: null, via: "page", status: "error", error: err.message, text: "", emails: [] });
+          }
+        }
+      }
     } catch (err: any) {
       add({ url, type, title: "", postdate: null, via: "page", status: "error", error: err.message, text: "", emails: [] });
     }
