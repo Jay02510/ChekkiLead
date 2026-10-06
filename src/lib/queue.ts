@@ -50,3 +50,24 @@ export function queuedLead(item: NaverSearchResult): Partial<EnrichedLead> & { e
 // working queues until the enrich cron has had a go at it.
 export const isAwaitingEnrichment = (lead: Pick<EnrichedLead, "enrichment_status">) =>
   lead.enrichment_status === "queued" || lead.enrichment_status === "failed";
+
+// mergeGrounded (rag/reenrich.ts) updates the fields a RE-enrichment changes,
+// which assumes the lead was enriched once already. A queued lead never was:
+// it holds the Korean district off the address and no English name or type at
+// all. These are the fields that first pass has to fill in.
+const FIRST_ENRICHMENT_FIELDS = [
+  "institution_name_en", "institution_name_kr", "institution_type", "city", "district",
+  "address_full", "phone", "website", "instagram", "director_name",
+  "english_signal", "needs_review",
+] as const;
+
+export function firstEnrichmentUpdate(grounded: EnrichedLead, manualFields: string[] = []): Record<string, unknown> {
+  const manual = new Set(manualFields);
+  const update: Record<string, unknown> = {};
+  for (const field of FIRST_ENRICHMENT_FIELDS) {
+    if (manual.has(field)) continue;
+    const value = grounded[field];
+    if (value !== undefined) update[field] = value;
+  }
+  return update;
+}

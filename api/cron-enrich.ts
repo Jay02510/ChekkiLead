@@ -1,18 +1,29 @@
 import { adminDb } from "../src/lib/firebaseAdmin.js";
-import { enrichLeadServer } from "../src/lib/serverActions.js";
 import { LEADS } from "../src/lib/collections.js";
+import { reenrichLead, sourcesAreFresh } from "../src/lib/rag/reenrich.js";
+import { DEFAULT_GROUNDED_MODE } from "../src/lib/rag/ground.js";
+import { firstEnrichmentUpdate } from "../src/lib/queue.js";
 import type { EnrichedLead } from "../src/types.js";
 
-// Stage two of two: take a couple of queued leads and enrich them. The sweep
-// (api/cron-sweep.ts) saves only what Naver returned; this is where a Gemini
-// call happens.
+// Stage two of two: take queued leads and enrich them from their own sources.
+// The sweep (api/cron-sweep.ts) saves only what Naver returned; this is where
+// everything expensive happens — fetching the school's site and blog, chunking
+// it, and one grounded Gemini call that may answer only from those chunks.
 //
-// BATCH is 2 against the 60s function ceiling (maxDuration in vercel.json),
-// with a 45s stop so a slow second call can finish writing instead of being
-// killed mid-update. Whatever is left stays 'queued' and the next run picks it
-// up, so the only cost of stopping early is latency.
+// Deliberately not enrichLeadServer: that path asks the model about a school it
+// has never read, which is the guessing this rebuild exists to stop. A lead
+// enriched here either has a fact with a verified quote behind it or has no
+// fact at all.
+//
+// Timing against the 60s function ceiling (maxDuration in vercel.json).
+// Collection is several HTTP fetches of pages this code doesn't control, so it
+// is budgeted far more generously than the enrichment call. A lead whose
+// collection could not start in time stays 'queued' and costs nothing but a
+// wait — being killed mid-write would be worse.
 const BATCH = 2;
 const DEADLINE_MS = 45_000;
+const NEEDED_TO_COLLECT_MS = 25_000;
+const NEEDED_TO_ENRICH_MS = 12_000;
 
 export default async function handler(req: any, res: any) {
   const auth = req.headers.authorization;
@@ -21,39 +32,47 @@ export default async function handler(req: any, res: any) {
   }
 
   const started = Date.now();
+  const left = () => DEADLINE_MS - (Date.now() - started);
   const db = adminDb();
   // Equality on one field, no ordering: a composite index would be one more
   // thing to keep in sync for a queue that is drained oldest-ish anyway.
   const snap = await db.collection(LEADS).where("enrichment_status", "==", "queued").limit(BATCH).get();
 
-  const stats = { enriched: 0, failed: 0, skipped: 0, remaining: 0 };
+  const stats = { enriched: 0, failed: 0, deferred: 0, skipped: 0, remaining: 0 };
   const log: string[] = [];
 
   for (const docSnap of snap.docs) {
-    if (Date.now() - started > DEADLINE_MS) {
-      log.push("Stopped at the 45s mark; the rest stays queued.");
-      break;
-    }
-    const lead = docSnap.data() as EnrichedLead;
+    const lead = { naver_id: docSnap.id, ...docSnap.data() } as EnrichedLead;
     if (!lead.naver_raw) {
       // Nothing to enrich from. Failing it is honest: it needs a person.
       await docSnap.ref.update({ enrichment_status: "failed", enrichment_error: "No naver_raw on the queued record." });
       stats.skipped++;
       continue;
     }
+
+    // Decided before the work starts, because the collection inside
+    // reenrichLead can't be interrupted once it has begun.
+    const needsCollection = !sourcesAreFresh(lead);
+    const needed = needsCollection ? NEEDED_TO_COLLECT_MS : NEEDED_TO_ENRICH_MS;
+    if (left() < needed) {
+      stats.deferred++;
+      log.push(`Left queued: ${lead.institution_name_kr} (${Math.round(left() / 1000)}s left, needs ~${needed / 1000}s)`);
+      continue;
+    }
+
     try {
-      const enriched = await enrichLeadServer(lead.naver_raw);
+      const { grounded, collected } = await reenrichLead(db, lead, { mode: DEFAULT_GROUNDED_MODE, write: true });
+      // reenrichLead has already written the fields a re-enrichment changes.
+      // A queued lead was never enriched at all, so the English name, type and
+      // district still have to be filled in.
       await docSnap.ref.update({
-        ...enriched,
-        // The queued record's own review state was computed in code from the
-        // Naver listing; enrichLeadServer recomputes it the same way, so
-        // taking the fresh one keeps a single source of truth.
+        ...firstEnrichmentUpdate(grounded, lead.manual_fields),
         enrichment_status: "enriched",
         enrichment_error: "",
         enriched_at: new Date().toISOString(),
       });
       stats.enriched++;
-      log.push(`Enriched: ${lead.institution_name_kr}`);
+      log.push(`Enriched: ${lead.institution_name_kr} (${DEFAULT_GROUNDED_MODE}${collected ? ", sources collected" : ", stored sources"})`);
     } catch (err: any) {
       // Out of quota is not this lead's fault — leave it queued and stop, or
       // the whole batch burns its attempts against a closed door.
@@ -71,9 +90,9 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const left = await db.collection(LEADS).where("enrichment_status", "==", "queued").count().get();
-  stats.remaining = left.data().count;
+  const remaining = await db.collection(LEADS).where("enrichment_status", "==", "queued").count().get();
+  stats.remaining = remaining.data().count;
 
-  console.log("cron-enrich", JSON.stringify({ ...stats, log }));
-  res.json({ ok: true, ...stats });
+  console.log("cron-enrich", JSON.stringify({ mode: DEFAULT_GROUNDED_MODE, ...stats, log }));
+  res.json({ ok: true, mode: DEFAULT_GROUNDED_MODE, ...stats });
 }
