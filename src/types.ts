@@ -58,6 +58,13 @@ export interface EnrichedLead {
   sources_collected_at?: string;
   source_counts?: { blog_own: number; blog_third_party: number; website: number; errors: number };
   candidate_emails?: CandidateEmail[];
+  // The sweep/enrich split (src/lib/queue.ts). A queued lead holds only what
+  // Naver returned; 'failed' carries the last error so it can be retried.
+  enrichment_status?: 'queued' | 'enriched' | 'failed';
+  enrichment_error?: string;
+  enrichment_attempts?: number;
+  queued_at?: string;
+  enriched_at?: string;
 }
 
 // An address found in collected text. Third-party blog emails usually belong

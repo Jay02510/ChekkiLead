@@ -3,6 +3,9 @@
     "api/cron-sweep.ts": {
       "maxDuration": 60
     },
+    "api/cron-enrich.ts": {
+      "maxDuration": 60
+    },
     "api/enrich-grounded.ts": {
       "maxDuration": 60
     }

@@ -42,6 +42,8 @@ const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible
 const FILTERS: { value: string; label: string }[] = [
   { value: 'not_contacted', label: 'New' },
   { value: 'review', label: 'Review' },
+  // Swept but not yet enriched, or enrichment failed (see api/cron-enrich.ts).
+  { value: 'queue', label: 'Awaiting enrichment' },
   { value: 'pending', label: 'Pending' },
   { value: 'sent', label: 'Sent' },
   { value: 'replied', label: 'Replied' },

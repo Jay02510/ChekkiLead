@@ -9,10 +9,11 @@ import { QueueView, DbSort } from './components/QueueView';
 import { isBlockedFromSending, factView } from './lib/leadUi';
 import { LEADS, DEV_LEADS, LEGACY_LEADS } from './lib/collections';
 import { blocklistFromDocs } from './lib/blocklist';
+import { isAwaitingEnrichment } from './lib/queue';
 import { buildQueries, NEIGHBOURHOODS, KEYWORDS } from './lib/searchPlan';
 import { Loader2, Sparkles, AlertCircle, Mail, Search, MapPin, ChevronLeft, ChevronRight, Layers, CheckCircle2, Download, Inbox } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy, arrayUnion, writeBatch } from 'firebase/firestore';
 import { db, authReady } from './lib/firebase';
 import { Toaster, toast } from 'sonner';
 
@@ -357,6 +358,25 @@ export default function App() {
     }
   };
 
+  // Puts failed leads back in the queue for api/cron-enrich to pick up.
+  // Clears the error but keeps enrichment_attempts, so a lead that keeps
+  // failing is still visible as such.
+  const handleRetryFailed = async () => {
+    const failed = savedLeads.filter(l => l.enrichment_status === 'failed');
+    if (failed.length === 0) return;
+    try {
+      await authReady;
+      const batch = writeBatch(db);
+      failed.forEach(l => batch.update(doc(db, LEADS_COLLECTION, l.naver_id), { enrichment_status: 'queued', enrichment_error: '' }));
+      await batch.commit();
+      toast.success(`${failed.length} lead${failed.length === 1 ? '' : 's'} back in the queue`);
+      fetchSavedLeads();
+    } catch (err) {
+      console.error('Failed to requeue leads', err);
+      toast.error('Could not requeue those leads');
+    }
+  };
+
   const handleEditContact = async (naver_id: string, updates: Record<string, string | null>): Promise<boolean> => {
     try {
       await authReady;
@@ -520,10 +540,18 @@ export default function App() {
   // handleBulkSweep's `seen` set); only the list view hides them.
   const [showNonTargets, setShowNonTargets] = useState(false);
   const visibleLeads = savedLeads.filter(l => !l.deleted && (showNonTargets || !l.non_target));
+  // A swept-but-not-yet-enriched lead has nothing to show and nothing to send,
+  // so it stays out of the status queues and lives under its own filter.
+  const awaiting = visibleLeads.filter(isAwaitingEnrichment);
+  const workable = visibleLeads.filter(l => !isAwaitingEnrichment(l));
+  const queueCounts = useMemo(() => ({
+    queued: awaiting.filter(l => l.enrichment_status === 'queued').length,
+    failed: awaiting.filter(l => l.enrichment_status === 'failed').length,
+  }), [savedLeads]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: visibleLeads.length };
+    const c: Record<string, number> = { all: visibleLeads.length, queue: awaiting.length };
     // Leads waiting on an English check live in Review, not in the status queues.
-    visibleLeads.forEach(l => {
+    workable.forEach(l => {
       const key = l.needs_review ? 'review' : l.firebase_status;
       c[key] = (c[key] || 0) + 1;
     });
@@ -531,8 +559,9 @@ export default function App() {
   }, [savedLeads]);
   const q = listQuery.trim().toLowerCase();
   const filteredLeads = [...(dbFilter === 'all' ? visibleLeads
-      : dbFilter === 'review' ? visibleLeads.filter(l => l.needs_review)
-      : visibleLeads.filter(l => !l.needs_review && l.firebase_status === dbFilter))]
+      : dbFilter === 'queue' ? awaiting
+      : dbFilter === 'review' ? workable.filter(l => l.needs_review)
+      : workable.filter(l => !l.needs_review && l.firebase_status === dbFilter))]
     .filter(l => !q || [l.institution_name_en, l.institution_name_kr, l.district, l.city].some(f => (f || '').toLowerCase().includes(q)))
     .sort((a, b) => {
       if (dbSort === 'district') return (a.district || '').localeCompare(b.district || '');
@@ -629,6 +658,22 @@ export default function App() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-4">
+            {(queueCounts.queued > 0 || queueCounts.failed > 0) && (
+              <div className="flex items-center gap-2 text-sm" title="Leads the sweep saved that still need enriching">
+                {queueCounts.queued > 0 && <span className="tabular-nums text-zinc-300">Queued {queueCounts.queued}</span>}
+                {queueCounts.failed > 0 && (
+                  <>
+                    <span className="tabular-nums text-amber-300">Failed {queueCounts.failed}</span>
+                    <button
+                      onClick={handleRetryFailed}
+                      className={`px-2 py-0.5 text-xs font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors active:scale-[0.97] ${focusRing}`}
+                    >
+                      Retry failed
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-2" title="Emails marked sent today against the daily cap">
               <span className={`text-sm tabular-nums ${sentToday >= DAILY_SEND_CAP ? 'text-red-300' : 'text-zinc-300'}`}>Sent today {sentToday}/{DAILY_SEND_CAP}</span>
               <span className="hidden sm:flex gap-0.5" aria-hidden>
