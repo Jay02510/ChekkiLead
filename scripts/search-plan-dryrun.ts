@@ -2,14 +2,16 @@
 // pipeline would do with the results. No Gemini calls, no writes — this is for
 // judging the search plan before turning any sweep on.
 //
-//   npx tsx scripts/search-plan-dryrun.ts [--limit N] [--verbose]
+//   npx tsx scripts/search-plan-dryrun.ts [--limit N] [--verbose] [--csv FILE]
 //
 //   --limit N   only the first N queries (each query is one Naver call)
 //   --verbose   list every new place, with its district and category
+//   --csv FILE  write the new leads to a call list (default call-list-<date>.csv)
 import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
+import { writeFileSync } from "node:fs";
 import { adminDb } from "../src/lib/firebaseAdmin";
 import { searchNaver } from "../src/lib/serverActions";
 import { getNaverId, stripHtml } from "../src/lib/naverId";
@@ -24,7 +26,26 @@ const verbose = process.argv.includes("--verbose");
 const limit = arg("--limit") ? Number(arg("--limit")) : Infinity;
 if (arg("--limit") && !(limit > 0)) throw new Error("--limit needs a positive number.");
 
+const csvFlag = process.argv.includes("--csv");
+const csvPath = arg("--csv")?.startsWith("--") === false ? arg("--csv")! : `call-list-${new Date().toISOString().slice(0, 10)}.csv`;
+
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(0)}% (${n}/${d})` : "n/a");
+
+const CSV_COLUMNS = ["name", "phone", "address", "category", "english_signal", "website", "naver_id", "found_by"] as const;
+
+const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+// Excel on Korean Windows reads a BOM-less UTF-8 CSV as cp949 and turns every
+// 한글 name into mojibake. The BOM is the whole fix.
+function writeCallList(path: string, rows: { item: NaverSearchResult; query: string; id: string }[]) {
+  const order = { confirmed: 0, unsure: 1, none: 2 };
+  const sorted = [...rows].sort((a, b) => order[englishSignal(a.item)] - order[englishSignal(b.item)]);
+  const lines = sorted.map(({ item, query, id }) => [
+    stripHtml(item.title), item.telephone || "", item.roadAddress || item.address || "",
+    item.category || "", englishSignal(item), item.link || "", id, query,
+  ].map(v => cell(String(v))).join(","));
+  writeFileSync(path, "﻿" + [CSV_COLUMNS.join(","), ...lines].join("\n") + "\n");
+}
 
 async function main() {
   const db = adminDb();
@@ -75,6 +96,11 @@ async function main() {
       console.log(`  new  ${stripHtml(p.item.title)}  [${p.item.category}]  ${englishSignal(p.item)}  (${p.query}, ${id})`);
     }
     console.log("");
+  }
+
+  if (csvFlag) {
+    writeCallList(csvPath, newTargets.map(([id, p]) => ({ ...p, id })));
+    console.log(`Wrote ${newTargets.length} leads to ${csvPath} (English confirmed first). Blocklisted places are not in it.\n`);
   }
 
   console.log(`Search plan over ${queries.length} queries

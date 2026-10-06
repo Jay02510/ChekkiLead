@@ -13,3 +13,6 @@ eval/sources/
 
 # Firestore exports taken before a destructive script: production contact data
 backups/
+
+# Call lists from scripts/search-plan-dryrun.ts --csv: real phone numbers
+call-list-*.csv
