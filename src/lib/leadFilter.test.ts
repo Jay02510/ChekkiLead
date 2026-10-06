@@ -53,6 +53,22 @@ describe('isLikelyTarget rules', () => {
     expect(isLikelyTarget({ category: '어학교육>영어교육', title: 'YBM 서초CBT센터' })).toBe(false);
     expect(isLikelyTarget({ category: '교육,학문', title: '메이플넥스 강남시험센터' })).toBe(false);
   });
+  // All six turned up in the search-plan dry run, pulled in by the 키즈영어 and
+  // 유치원 keywords, and all six passed the title-only check.
+  it('rejects non-school businesses that share the keyword, by category', () => {
+    expect(isLikelyTarget({ category: '키즈카페,실내놀이터', title: '더블루타이거 분당점' })).toBe(false);
+    expect(isLikelyTarget({ category: '임대,대여>만화,도서', title: '키즈북렌탈 수내점' })).toBe(false);
+    expect(isLikelyTarget({ category: '생활,편의>공방', title: '빌라로사 베이킹 스튜디오' })).toBe(false);
+    expect(isLikelyTarget({ category: '생활,편의>반려동물', title: '오픈독하우스' })).toBe(false);
+    expect(isLikelyTarget({ category: '출판사>학습참고서출판', title: '한꿈아이' })).toBe(false);
+    expect(isLikelyTarget({ category: '쇼핑,유통>종합도소매', title: '선물이야기' })).toBe(false);
+  });
+  it('rejects public and school-attached kindergartens, which have no owner to sell to', () => {
+    expect(isLikelyTarget({ category: '교육,학문>공립병설유치원', title: '판교초등학교 병설유치원' })).toBe(false);
+    expect(isLikelyTarget({ category: '교육,학문>유치원', title: '낙생초등학교 병설유치원 영어' })).toBe(false);
+    // A private kindergarten is still a lead: 사립 must not match 공립.
+    expect(isLikelyTarget({ category: '교육,학문>사인사립유치원', title: '한울유치원' })).toBe(true);
+  });
   it('rejects TOEFL / TEPS categories', () => {
     expect(isLikelyTarget({ category: '어학교육>토플', title: 'x어학원' })).toBe(false);
     expect(isLikelyTarget({ category: '어학교육>TEPS', title: 'x어학원' })).toBe(false);

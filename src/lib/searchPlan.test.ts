@@ -19,16 +19,16 @@ describe('search plan', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('builds one query per neighbourhood and keyword, as "dong keyword"', () => {
+  it('builds one query per neighbourhood and keyword, as "district dong keyword"', () => {
     const queries = buildQueries();
     expect(queries.length).toBe(NEIGHBOURHOODS.length * KEYWORDS.length);
-    expect(queries[0]).toBe(`${NEIGHBOURHOODS[0].dong} ${KEYWORDS[0]}`);
+    expect(queries[0]).toBe(`${NEIGHBOURHOODS[0].district} ${NEIGHBOURHOODS[0].dong} ${KEYWORDS[0]}`);
     expect(new Set(queries).size).toBe(queries.length);
   });
 
-  it('searches by neighbourhood, never by district — a district query only ever returns its top 5', () => {
+  it('always names a 동 — a district-only query returns the same top 5 large academies', () => {
     for (const q of buildQueries()) {
-      expect(q).not.toMatch(/구 /);
+      expect(q, q).toMatch(/동 /);
     }
   });
 });

@@ -15,8 +15,16 @@ const REJECT_CATEGORY = /토익|토플|toefl|ielts|아이엘츠|teps|텝스|영�
 // Adult or test-prep brands that sometimes carry a generic category.
 const REJECT_BRANDS = /해커스|파고다|YBM어학원|월스트리트|프라임아이엘츠/i;
 
-// Not schools at all: dog daycares, cafes, test centres.
-const NON_SCHOOL = /애견|강아지|카페|시험센터|CBT/i;
+// Not schools at all. Checked against the title AND the category, because the
+// 키즈영어 and 유치원 queries pull in businesses that only share the keyword:
+// kids' cafes, baking studios, book rental, pet shops, publishers, gift shops.
+// Each one used to cost a Gemini call and a row in the review queue.
+const NON_SCHOOL = /애견|강아지|반려동물|카페|실내놀이터|놀이터|시험센터|CBT|공방|베이킹|임대|대여|출판|도소매|쇼핑|미용|부동산/i;
+
+// Public and school-attached kindergartens (공립병설유치원, 초등학교 병설유치원).
+// They run on a municipal budget with no owner to sell to, so they are not
+// leads however much English they teach.
+const PUBLIC_KINDERGARTEN = /공립|국립|병설|시립|도립/;
 
 // Does the Naver listing itself say the school teaches English?
 //   confirmed: the name, category or description names English.
@@ -40,7 +48,8 @@ export function isLikelyTarget(item: Pick<NaverSearchResult, "title" | "category
   const category = item.category || "";
   if (REJECT_CATEGORY.test(category)) return false;
   if (REJECT_BRANDS.test(title)) return false;
-  if (NON_SCHOOL.test(title)) return false;
+  if (NON_SCHOOL.test(`${title} ${category}`)) return false;
+  if (PUBLIC_KINDERGARTEN.test(`${title} ${category}`)) return false;
   if (englishSignal(item) === "none") return false;
   return true;
 }

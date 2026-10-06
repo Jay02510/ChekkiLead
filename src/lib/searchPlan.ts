@@ -67,7 +67,11 @@ export const NEIGHBOURHOODS: Neighbourhood[] = [
 // names English, and anything unsure goes to the Review queue.
 export const KEYWORDS = ["영어유치원", "어린이영어학원", "키즈영어", "유치원"];
 
+// The district goes in front of the 동 because dong names repeat across the
+// country: a bare "금곡동 유치원" came back with 남양주금곡초등학교병설유치원,
+// a different city entirely. Naver resolves "분당구 금곡동" to the right one.
+// This is still a neighbourhood query — the district only narrows it.
 export const buildQueries = (): string[] =>
-  NEIGHBOURHOODS.flatMap(n => KEYWORDS.map(k => `${n.dong} ${k}`));
+  NEIGHBOURHOODS.flatMap(n => KEYWORDS.map(k => `${n.district} ${n.dong} ${k}`));
 
 export const districts = () => [...new Set(NEIGHBOURHOODS.map(n => n.district))];
