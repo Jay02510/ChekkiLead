@@ -255,6 +255,8 @@ export function LeadCard({ lead, isSaved, hideStatus, onSave, onStatusChange, on
       </dl>
 
       <div className="px-5 sm:px-6 py-5 border-t border-white/10 space-y-3">
+        {/* Priority, fit and notes are the model's judgment: no citation, no verification. */}
+        <p className="text-xs text-zinc-500">Model judgment, not checked against a source.</p>
         <div>
           <h3 className="text-sm font-semibold text-zinc-100">Why it fits</h3>
           <p className="text-sm text-zinc-300 mt-1 leading-relaxed">{lead.fit_reason}</p>

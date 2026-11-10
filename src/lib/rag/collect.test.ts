@@ -243,7 +243,7 @@ describe('fetchPage', () => {
   it('truncates very long text so a source fits in one Firestore document', async () => {
     const long = `<html><body><p>${'가나다라. '.repeat(40_000)}</p></body></html>`;
     const out = await fetchPage('https://academy.kr/', mockFetch({ academy: html(long) }));
-    expect(out.text.length).toBeLessThanOrEqual(100_000);
+    expect(out.text.length).toBeLessThanOrEqual(60_000);
   });
   it('decodes EUC-KR pages from the content-type charset', async () => {
     const bytes = new Uint8Array([0xc7, 0xd0, 0xbf, 0xf8]); // 학원 in EUC-KR

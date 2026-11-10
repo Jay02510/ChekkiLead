@@ -109,10 +109,15 @@ const emptyFact = <V extends string | string[]>(over: Partial<GroundedFact<V>> =
   value: null, status: "not_found", chunk_id: null, quote: null, source_url: null, source_type: null, verification: null, ...over,
 });
 
+// A quote shorter than this ("학원", "영어") is in every chunk and proves nothing.
+export const MIN_QUOTE_CHARS = 5;
+
+const digitRuns = (s: string): string[] => normalizeQuote(s).match(/\d+/g) ?? [];
+
 export function verifyFact<V extends string | string[]>(
   fact: GroundedFact<V>,
   chunks: ContextChunk[],
-  opts: { ownSourceOnly?: boolean } = {},
+  opts: { ownSourceOnly?: boolean; numeric?: boolean } = {},
 ): { fact: GroundedFact<V>; failed: boolean } {
   if (fact.status === "not_found") return { fact: emptyFact<V>(), failed: false };
 
@@ -126,6 +131,16 @@ export function verifyFact<V extends string | string[]>(
   const chunk = chunks.find(c => c.id === fact.chunk_id);
   if (!chunk) return reject("chunk_id was not given to the model");
   if (!fact.quote || !normalizeQuote(chunk.text).includes(normalizeQuote(fact.quote))) return reject("quote not found in the cited chunk");
+  const quote = normalizeQuote(fact.quote);
+  if (quote.length < MIN_QUOTE_CHARS) return reject("quote too short to prove anything");
+  // The quote existing is not enough: it has to say the value. For a number
+  // the source states outright, every number in the value must be in the
+  // quote. Inferred values are exempt — "초등 1~3학년" inferred as "7–9세" is
+  // the point of inferring.
+  if (opts.numeric && fact.status === "sourced" && typeof fact.value === "string") {
+    const missing = digitRuns(fact.value).filter(d => !digitRuns(quote).includes(d));
+    if (missing.length) return reject(`value states ${missing.join(", ")}, the quote does not`);
+  }
   if (opts.ownSourceOnly && chunk.source_type === "blog_third_party") return reject("cited a third-party chunk");
 
   return {
@@ -138,8 +153,8 @@ export function verifyFact<V extends string | string[]>(
 // not_found with verification "failed". The hook may only cite an own source:
 // a director must never get an email quoting a parent's blog post.
 export function verifyFacts(facts: GroundedFacts, chunksGiven: ContextChunk[]): { facts: GroundedFacts; failures: number } {
-  const age = verifyFact(facts.age_range, chunksGiven);
-  const students = verifyFact(facts.approx_students, chunksGiven);
+  const age = verifyFact(facts.age_range, chunksGiven, { numeric: true });
+  const students = verifyFact(facts.approx_students, chunksGiven, { numeric: true });
   const levels = verifyFact(facts.cefr_levels, chunksGiven);
   const hook = verifyFact(facts.hook, chunksGiven, { ownSourceOnly: true });
   return {

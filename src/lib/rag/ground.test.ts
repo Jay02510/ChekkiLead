@@ -52,6 +52,14 @@ describe('verifyFacts', () => {
   });
   it('rejects a sourced fact with no value', () =>
     expect(verifyFacts(facts({ approx_students: fact({ value: '', status: 'sourced', chunk_id: 'a#0', quote: '만 3~5세' }) }), chunks).failures).toBe(1));
+  it('rejects a real but too-short quote', () =>
+    expect(verifyFacts(facts({ hook: fact({ value: '원어민 수업', status: 'sourced', chunk_id: 'a#0', quote: '학원' }) }), chunks).facts.hook.rejected?.[0].reason).toMatch(/too short/));
+  it('rejects a sourced number the quote does not state', () => {
+    const r = verifyFacts(facts({ age_range: fact({ value: '만 6–7세', status: 'sourced', chunk_id: 'a#0', quote: '만 3~5세 유아를 대상으로' }) }), chunks);
+    expect(r.facts.age_range.rejected?.[0].reason).toMatch(/6, 7/);
+  });
+  it('lets an inferred value differ in its numbers', () =>
+    expect(verifyFacts(facts({ age_range: fact({ value: '4–6 years', status: 'inferred', chunk_id: 'a#0', quote: '만 3~5세 유아를 대상으로' }) }), chunks).failures).toBe(0));
   it('leaves not_found alone and clean', () => {
     const r = verifyFacts(facts({ age_range: fact({ value: 'junk', chunk_id: 'a#0', quote: 'x' }) }), chunks);
     expect(r.failures).toBe(0);

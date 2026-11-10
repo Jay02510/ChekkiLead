@@ -45,8 +45,11 @@ export type CollectLead = Pick<EnrichedLead, "institution_name_kr" | "district" 
 const MIN_RELEVANT_POSTS = 5;
 const MAX_PAGE_BYTES = 500 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
-// Keeps a source plus its chunks under Firestore's 1 MiB document limit (Korean is 3 bytes/char).
-const MAX_TEXT_CHARS = 100_000;
+// Keeps a source under Firestore's 1 MiB document limit. Korean is 3 bytes a
+// character, and the document holds the text, its overlapping chunks (~1.15x
+// the text) and, in grounded_retrieval, 256 doubles per chunk: about 560 KB at
+// 60,000 characters. 100,000 came to about 930 KB.
+const MAX_TEXT_CHARS = 60_000;
 const USER_AGENT = "ChekkiLeadBot/1.0 (+https://chekki-lead.vercel.app; academy research for outreach)";
 
 export const sourceIdFor = (url: string) => createHash("sha1").update(url).digest("hex").slice(0, 10);
@@ -394,9 +397,11 @@ export function extractEmails(text: string): string[] {
 // ---------- chunking ----------
 
 const CHUNK_SIZE = 800;
-const CHUNK_OVERLAP = 100;
+// At least the longest quote the grounded prompt allows (200 characters), so a
+// quote that straddles a boundary is still whole inside one chunk.
+const CHUNK_OVERLAP = 200;
 
-// Page text -> ~800-char chunks with 100 chars of overlap, ending at a
+// Page text -> ~800-char chunks with 200 chars of overlap, ending at a
 // sentence boundary (., !, ?) when one falls in the back half of the window.
 // Chunk ids are `${sourceId}#${n}`. Short text (blog snippets) is one chunk.
 export function chunk(text: string, sourceId: string): Chunk[] {
