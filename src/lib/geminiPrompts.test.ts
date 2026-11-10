@@ -33,3 +33,12 @@ describe('frozen baseline_v0 enrichment', () => {
     expect(BASELINE_V0_SYSTEM_PROMPT).toContain('construct the most likely email');
   });
 });
+
+describe('outreach email prompt', () => {
+  it('never gives the model the managerial claim, and offers the workbook sampler', async () => {
+    const { EMAIL_SYSTEM_PROMPT } = await import('./geminiPrompts');
+    expect(EMAIL_SYSTEM_PROMPT).not.toMatch(/managerial role/i);
+    expect(EMAIL_SYSTEM_PROMPT).toContain('chekki-english-sampler-ko');
+    expect(EMAIL_SYSTEM_PROMPT).not.toContain('ai-readiness');
+  });
+});

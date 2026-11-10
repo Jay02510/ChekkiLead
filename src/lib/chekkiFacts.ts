@@ -11,7 +11,14 @@ export const CHEKKI_SCHOOLS = `Chekki Schools — hagwon partnership program. Wh
 
 export const FOUNDER_BACKGROUND = `Jason — 10+ years EFL teaching in Seoul (private schools, English Villages, including YBM PSA and Blend ENG Academy), Master's in Education with a curriculum development focus, and created 10+ textbooks for his previous hagwon. Former managerial role at a hagwon — this is where the Chekki concept originated (curriculum-pace mismatch with student levels, parents unable to support homework at home).`;
 
-export const AI_READINESS_CHECK_MINUTES = 4;
+// ---------- outreach email (EMAIL_SYSTEM_PROMPT only) ----------
+// FOUNDER_BACKGROUND above is interpolated into the frozen baseline enrichment
+// prompts, so it can't change without breaking the eval's control. It
+// overstates one thing (Jason never held a managerial role at a hagwon), which
+// is why the email reads FOUNDER_EMAIL instead. Source: Chekki-Brain facts.md.
+export const FOUNDER_EMAIL = `Jason Benjamin — 10+ years teaching English in Seoul (private schools and English Villages), Master's in Education with a curriculum development focus, and wrote 10+ textbooks used in a hagwon he taught at. He has never managed or owned a hagwon: never say or imply he did.`;
 
-export const AI_READINESS_CHECK_EN = `a free ${AI_READINESS_CHECK_MINUTES}-minute AI-readiness diagnostic that sends a personalized report by email`;
-export const AI_READINESS_CHECK_KR = `${AI_READINESS_CHECK_MINUTES}분이면 끝나는 무료 진단`;
+// The workbook. Audio is AI voices: never 원어민 / "native speaker".
+export const WORKBOOK = `체키 영어 1: 첫 문장 읽기 — a 72-page English reading workbook for ages 4–7 (first sentences), with QR audio in four voices. Volume 1 of a planned series.`;
+export const WORKBOOK_SAMPLER_PAGES = 9;
+export const WORKBOOK_SAMPLER_URL_KR = "https://chekkiai.gumroad.com/l/chekki-english-sampler-ko?utm_source=email&utm_medium=email&utm_campaign=schools_sampler";

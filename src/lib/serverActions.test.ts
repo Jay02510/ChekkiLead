@@ -14,7 +14,7 @@ describe('applyEmailCompliance', () => {
     subject_combined_b: '테스트 제목 B | Test subject B',
     body_korean: '안녕하세요.',
     body_english: 'Hello.',
-    cta_primary: 'https://ai-readiness.chekkiai.com',
+    cta_primary: 'https://chekkiai.gumroad.com/l/chekki-english-sampler-ko',
     personalisation_note: 'n/a',
     institution_type_targeted: 'hagwon',
   };
