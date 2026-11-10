@@ -364,6 +364,8 @@ export async function fetchPage(url: string, fetchImpl: FetchLike = fetch): Prom
 
 // ---------- emails ----------
 
+export const refusesEmailCollection = (text: string) => /무단\s*수집[^.]{0,10}거부/.test(text);
+
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 const FILE_TLD = /\.(png|jpe?g|gif|webp|svg|bmp|ico|css|js|woff2?|ttf|mp4)$/i;
 const PLACEHOLDER_DOMAIN = /^(example|domain|email|yourdomain|yoursite|test|sentry|wixpress)\./i;
@@ -537,8 +539,14 @@ export async function collectForLead(lead: CollectLead, deps: CollectDeps = {}):
   };
   // One entry per address. If the same address shows up in a third-party post
   // and an own page, the own source wins.
+  // 정보통신망법 Article 50-2: harvesting addresses by automated means from a
+  // site that posts a refusal notice (이메일무단수집거부) is illegal. A notice on
+  // a page voids that page's emails; one on the academy's own site or blog
+  // voids every email for the academy.
+  const refused = all.filter(s => refusesEmailCollection(s.text));
+  const ownRefused = refused.some(s => s.type !== "blog_third_party");
   const candidate_emails: CandidateEmail[] = [];
-  for (const s of all) {
+  for (const s of ownRefused ? [] : all.filter(s => !refused.includes(s))) {
     for (const email of s.emails) {
       const entry: CandidateEmail = { email, sourceId: s.id, sourceType: s.type };
       const i = candidate_emails.findIndex(c => c.email === email);

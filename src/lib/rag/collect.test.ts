@@ -360,6 +360,19 @@ describe('collectForLead', () => {
     expect(out.candidate_emails).toEqual([{ email: 'blogger@gmail.com', sourceId: sourceIdFor(normalizeUrl('https://blog.naver.com/mom/1')), sourceType: 'blog_third_party' }]);
     expect(isOwnSourceEmail(out.candidate_emails[0])).toBe(false);
   });
+  it('drops every email when the own site refuses email collection', async () => {
+    const own = `<html><body><p>${'DYB최선어학원 분당 직영 소개 문장입니다. '.repeat(3)} 문의 own@dyb.kr 이메일무단수집거부</p></body></html>`;
+    const f = mockFetch({
+      'openapi.naver.com': () => searchOf([{ ...rel(1), description: '문의 blogger@gmail.com' }]),
+      'm.blog.naver.com/dybchoisun': html(own),
+    });
+    expect((await collectForLead(lead(), { fetchImpl: f, sleep: async () => {} })).candidate_emails).toEqual([]);
+  });
+  it('drops only that page\'s emails when a third-party page refuses', async () => {
+    const f = (async () => searchOf([{ ...rel(1), description: 'a@x.kr 이메일 무단 수집 거부' }, { ...rel(2), description: 'b@y.kr' }])) as FetchLike;
+    const out = await collectForLead(lead({ naver_raw: undefined }), { fetchImpl: f, sleep: async () => {} });
+    expect(out.candidate_emails.map(c => c.email)).toEqual(['b@y.kr']);
+  });
   it('prefers the own source when an address appears in both', async () => {
     const own = `<html><body><p>${'DYB최선어학원 분당 직영 소개 문장입니다. '.repeat(3)} 문의 shared@dyb.kr</p></body></html>`;
     const f = mockFetch({
