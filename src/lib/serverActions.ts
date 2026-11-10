@@ -184,12 +184,11 @@ export function applyEmailCompliance(draft: EmailDraft): EmailDraft {
 export async function generateEmailServer(lead: EnrichedLead): Promise<EmailDraft> {
   if (!lead) throw Object.assign(new Error("lead is required."), { status: 400 });
 
-  // A lead enriched from sources may only be drafted from a verified hook.
-  // Leads that predate grounding keep the old path: their hook came from the
-  // Naver listing, which is thin but at least isn't invented.
-  const grounded = !!lead.facts;
-  const hook = grounded ? hookForDraft(lead) : null;
-  if (grounded && !hook) {
+  // Every draft opens with a verified hook or one a person typed in. A lead
+  // saved from the Find tab has no sources yet, so it has neither until it is
+  // re-enriched with sources or given a hook by hand.
+  const hook = hookForDraft(lead);
+  if (!hook) {
     throw Object.assign(
       new Error(`No verified hook for ${lead.institution_name_kr}. Collect sources, re-enrich, or type a hook in yourself — a generic opener is not worth sending.`),
       { status: 422 },

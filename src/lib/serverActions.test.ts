@@ -165,3 +165,11 @@ describe('blankUnstated', () => {
   it('keeps levels the listing names', () =>
     expect(blankUnstated({ ...item, description: 'CEFR A1-A2 과정' }, guessed).cefr_levels_taught).toEqual(['A1', 'A2']));
 });
+
+describe('generateEmailServer', () => {
+  it('refuses to draft a lead with no verified or typed hook', async () => {
+    const { generateEmailServer } = await import('./serverActions');
+    await expect(generateEmailServer({ institution_name_kr: '테스트어학원', personalization_hook: '모델이 쓴 문장' } as any))
+      .rejects.toMatchObject({ status: 422 });
+  });
+});
